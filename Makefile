@@ -52,7 +52,10 @@ TARGET = main
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c uart.c spi.c dac8568c.c ringbuffer.c midibuffer.c midinote_stack.c
+SRCDIR = src/
+INCDIR = inc/
+SRC = $(wildcard $(SRCDIR)*.c)
+# $(TARGET).c uart.c spi.c dac8568c.c ringbuffer.c midibuffer.c midinote_stack.c
 
 
 # List Assembler source files here.
@@ -93,7 +96,7 @@ CSTANDARD = -std=gnu99
 CDEFS = -DDEBUG
 
 # Place -I options here
-CINCS =
+CINCS = -I$(INCDIR)
 
 
 # Compiler flags.
