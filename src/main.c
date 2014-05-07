@@ -57,6 +57,8 @@ bool midi_handler_function(midimessage_t* m) {
 		case NOTE_OFF:
 			midinote_stack_remove(&note_stack, m->byte[1]);
 			break;
+		default:
+			return false;
 	}
 	return true;
 }
