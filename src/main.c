@@ -15,6 +15,22 @@
 #define LED_P0		PC0
 #define NUM_PLAY_NOTES	4
 
+#define SET(x,y)	(x |= (y))
+#define ISSET(x,y)	(x & y)
+#define UNSET(x,y)	(x &= ~(y))
+
+/**
+ * The whole trick about playing 4 notes at a time is the usage of a
+ * peek_n-method on the note-stack: if a new (5th) note "overwrites" the oldest
+ * playing note it is not specifically "overwritten" - it just doesn't
+ * peek anymore from the stack - but now the new note does. As it is not peeked
+ * anymore it gets erased from the playing notes array and the new note gets
+ * inserted on that empty spot instead.
+ * If any playing note stops playing (before a new one comes in), the newest 
+ * non-playing note will come back into the peek_n-return and continues 
+ * playing (but maybe on another channel...)
+ */
+
 // dunno where these numbers come from
 //unsigned int voltage1 = 13400;
 //unsigned int voltage2 = 26500;
@@ -52,6 +68,7 @@ bool midi_handler_function(midimessage_t* m) {
 		case NOTE_ON:
 			mnote.note = m->byte[1];
 			mnote.velocity = m->byte[2];
+			SET(mnote.flags, TRIGGER_FLAG);
 			midinote_stack_push(&note_stack, mnote);
 			break;
 		case NOTE_OFF:
@@ -134,7 +151,21 @@ void update_dac(void) {
 		// Send velocity
 		get_voltage(velocity, &voltage);
 		dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
-		// TODO: send GATE Voltage
+
+		// not putting this if-clause at start because we would have to reset all 
+		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes 
+		// they are already 0 here if this note is not playing and will get reset 
+		// implicitly here
+		if(playing_notes[i].note != 0) {
+			// TODO: send GATE Voltage to GATE-Pin for this channel
+		} else {
+			// TODO: send NON GATE Voltage to GATE-Pin for this channel
+		}
+		if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
+			// TODO: send TRIGGER Voltage to TRIGGER-Pin for this channel
+		} else {
+			// TODO: send NON-TRIGGER Voltage to TRIGGER-Pin for this channel
+		}
 	}
 }
 
@@ -166,6 +197,8 @@ ISR(USART_RXC_vect) {
 }
 
 int main(int argc, char** argv) {
+	uint8_t i = 0;
+	bool update = false;
 	init_variables();
 	init_io();
 	sei();
@@ -173,6 +206,16 @@ int main(int argc, char** argv) {
 		if(midibuffer_tick(&midi_buffer)) {
 			update_notes();
 			update_dac();
+		}
+		for(i=0;i<NUM_PLAY_NOTES; ++i) {
+			if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
+				UNSET(playing_notes[i].flags, TRIGGER_FLAG);
+				update = true;
+			}
+		}
+		if(update) {
+			update_dac();
+			update = false;
 		}
 	}
 	return 0;
