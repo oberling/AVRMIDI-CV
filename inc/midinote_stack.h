@@ -6,7 +6,7 @@
 
 #ifndef MIDINOTE_STACK_SIZE
 #pragma message "MIDINOTE_STACK_SIZE not defined - defaulting to 8"
-#define MIDINOTE_STACK_SIZE	8
+#define MIDINOTE_STACK_SIZE	(8)
 #endif
 
 /**
@@ -74,4 +74,4 @@ bool midinote_stack_remove(midinote_stack_t* s, note_t remnote);
  */
 bool midinote_stack_peek_n(midinote_stack_t* s, uint8_t num_req, midinote_t** first, uint8_t* num_ret);
 
-#endif
+#endif // _MIDINOTE_STACK_H_

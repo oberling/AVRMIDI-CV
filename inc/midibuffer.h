@@ -79,4 +79,4 @@ bool midibuffer_empty(midibuffer_t* b);
  */
 bool midibuffer_tick(midibuffer_t* b);
 
-#endif
+#endif // __MIDIBUFFER_H_

@@ -13,7 +13,10 @@
 #define LED_PORT	PORTC
 #define LED_DDR		DDRC
 #define LED_P0		PC0
-#define NUM_PLAY_NOTES	4
+#ifndef NUM_PLAY_NOTES
+#pragma message "NUM_PLAY_NOTES not defined - defining 4 Notes"
+#define NUM_PLAY_NOTES	(4)
+#endif
 
 #define SET(x,y)	(x |= (y))
 #define ISSET(x,y)	(x & y)

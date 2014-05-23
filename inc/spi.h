@@ -11,4 +11,4 @@
 
 void init_spi(void);
 void spi_transfer(uint8_t data);
-#endif
+#endif // __SPI_H_

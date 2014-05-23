@@ -4,13 +4,12 @@
 #include <stdbool.h>
 #include "defines.h"
 
-// Berechnungen
-#define UBRR_VAL ((F_CPU+BAUD*8)/(BAUD*16)-1)   // clever runden
-#define BAUD_REAL (F_CPU/(16*(UBRR_VAL+1)))     // Reale Baudrate
-#define BAUD_ERROR ((BAUD_REAL*1000)/BAUD) // Fehler in Promille, 1000 = kein Fehler.
+#define UBRR_VAL ((F_CPU+BAUD*8)/(BAUD*16)-1)   // clever rounding
+#define BAUD_REAL (F_CPU/(16*(UBRR_VAL+1)))     // Real baudrate
+#define BAUD_ERROR ((BAUD_REAL*1000)/BAUD) // Error in promile, 1000 = no Error.
  
 #if ((BAUD_ERROR<990) || (BAUD_ERROR>1010))
-   #error systemic error of baudrate bigger 1% - thats to damn high! 
+   #error systemic error of baudrate bigger 1% - thats too damn high! 
 #endif
 
 /**
@@ -48,4 +47,4 @@ bool uart_puts(char* s);
  */
 bool uart_getc(char* out);
 
-#endif
+#endif // __UART_H_

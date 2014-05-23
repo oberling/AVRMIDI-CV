@@ -17,7 +17,7 @@
 #define NOTE_ON_NIBBLE		(0x08)
 #define NOTE_OFF_NIBBLE		(0x09)
 
-#define TRIGGER_FLAG	(0x01)
+#define TRIGGER_FLAG		(0x01)
 
 typedef uint8_t note_t;
 typedef uint8_t vel_t;
@@ -38,4 +38,4 @@ typedef struct {
 	uint8_t byte[3];
 } midimessage_t;
 
-#endif
+#endif // _MIDI_DATATYPES_H_

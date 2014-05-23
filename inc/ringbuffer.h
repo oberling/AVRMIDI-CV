@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #ifndef RINGBUFFER_SIZE
 #pragma message "RINGBUFFER_SIZE not defined - defaulting to 8"
-#define RINGBUFFER_SIZE 8
+#define RINGBUFFER_SIZE (8)
 #endif
 #define RINGBUFFER_MASK (RINGBUFFER_SIZE-1)
 
@@ -75,4 +75,4 @@ bool ringbuffer_put(ringbuffer_t* b, unsigned char a);
  */
 bool ringbuffer_getn_or_nothing(ringbuffer_t* b, unsigned char* out, uint8_t num_bytes);
 
-#endif
+#endif // __RINGBUFFER_H_
