@@ -2,7 +2,7 @@
 #include <string.h>
 
 bool midinote_stack_init(midinote_stack_t* s) {
-	memset(s->data, 0, sizeof(uint8_t)*MIDINOTE_STACK_SIZE);
+	memset(s->data, 0, sizeof(midinote_t)*MIDINOTE_STACK_SIZE);
 	s->position = 0;
 	return true;
 }
