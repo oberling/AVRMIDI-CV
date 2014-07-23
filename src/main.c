@@ -4,6 +4,9 @@
 #include "midi_datatypes.h"
 #include "midibuffer.h"
 #include "midinote_stack.h"
+#include "playmode.h"
+#include "polyphonic.h"
+#include "unison.h"
 
 #include <string.h>
 #include <avr/io.h>
@@ -13,14 +16,14 @@
 #define LED_PORT	PORTC
 #define LED_DDR		DDRC
 #define LED_P0		PC0
-#ifndef NUM_PLAY_NOTES
-#pragma message "NUM_PLAY_NOTES not defined - defining 4 Notes"
-#define NUM_PLAY_NOTES	(4)
-#endif
 
 #define SET(x,y)	(x |= (y))
 #define ISSET(x,y)	(x & y)
 #define UNSET(x,y)	(x &= ~(y))
+
+#define NUM_PLAY_MODES 2
+#define POLYPHONIC_MODE 0
+#define UNISON_MODE 1
 
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
@@ -56,6 +59,8 @@ uint32_t voltage[10] = { 6700,
 midibuffer_t midi_buffer;
 midinote_stack_t note_stack;
 midinote_t playing_notes[NUM_PLAY_NOTES];
+playmode_t mode[NUM_PLAY_MODES];
+uint8_t playmode = POLYPHONIC_MODE;
 
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
@@ -83,50 +88,6 @@ bool midi_handler_function(midimessage_t* m) {
 	return true;
 }
 
-void update_notes(void) {
-	// worst: O(n) = 3n² // with n = NUM_PLAY_NOTES -> 3*4²*4 CMDs = 192 CMDs
-	// at 16 MHz -> 12µs (at 5 CMDs per iteration (240CMDs): 15µs)
-	// +3µs per command on deepes loop layer
-	midinote_t mnotes[NUM_PLAY_NOTES];
-	midinote_t* it = mnotes;
-	uint8_t actual_played_notes;
-	uint8_t i=0;
-	uint8_t j=0;
-	bool found = false;
-	// get the actually to be played notes
-	midinote_stack_peek_n(&note_stack, NUM_PLAY_NOTES, &it, &actual_played_notes);
-	// remove nonplaying notes - leave alone the still playing notes
-	for(i=0; i<NUM_PLAY_NOTES; i++) {
-		found = false;
-		for(;j<actual_played_notes; j++) {
-			if(mnotes[j].note==playing_notes[i].note) {
-				found = true;
-				break;
-			}
-		}
-		// reset that note as it isn't played anymore
-		if(!found)
-			memset(playing_notes+i, 0, sizeof(midinote_t));
-	}
-	// add new playing notes - leave alone the already playing notes
-	for(i=0;i<actual_played_notes; i++) {
-		found = false;
-		for(j=0;j<NUM_PLAY_NOTES; j++) {
-			if(mnotes[j].note==playing_notes[i].note) {
-				found = true;
-				break;
-			}
-		}
-		if(!found) {
-			for(j=0; j<NUM_PLAY_NOTES; j++) {
-				if(playing_notes[i].note == 0) {
-					playing_notes[i] = mnotes[j];
-					break;
-				}
-			}
-		}
-	}
-}
 
 void get_voltage(uint8_t val, uint32_t* voltage_out) {
 	// we ignore the first octave... why so ever...
@@ -176,6 +137,9 @@ void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
 	memset(playing_notes, 0, sizeof(midinote_t)*NUM_PLAY_NOTES);
+	memset(mode, 0, sizeof(playmode)*NUM_PLAY_MODES);
+	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
+	mode[UNISON_MODE].update_notes = update_notes_unison;
 }
 
 void init_io(void) {
@@ -207,7 +171,7 @@ int main(int argc, char** argv) {
 	sei();
 	while(1) {
 		if(midibuffer_tick(&midi_buffer)) {
-			update_notes();
+			mode[playmode].update_notes(&note_stack, playing_notes);
 			update_dac();
 		}
 		for(i=0;i<NUM_PLAY_NOTES; ++i) {

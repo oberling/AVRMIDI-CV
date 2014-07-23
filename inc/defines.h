@@ -15,6 +15,11 @@
 #endif // DEBUG
 #endif // BAUD
 
+#ifndef NUM_PLAY_NOTES
+#pragma message "NUM_PLAY_NOTES not defined - defining 4 Notes"
+#define NUM_PLAY_NOTES	(4)
+#endif
+
 // must be 2^n
 #define RINGBUFFER_SIZE (32)
 #define ISL_DATATYPE	midimessage_t
