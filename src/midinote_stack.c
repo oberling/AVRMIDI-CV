@@ -42,8 +42,11 @@ bool midinote_stack_remove(midinote_stack_t* s, note_t remnote) {
 }
 
 bool midinote_stack_peek_n(midinote_stack_t* s, uint8_t num_req, midinote_t** first, uint8_t* num_ret) {
-	if(num_req == 0 || s->position == 0)
+	if(num_req == 0 || s->position == 0) {
+		*first = NULL;
+		*num_ret = 0;
 		return false;
+	}
 	if(num_req >= s->position) {
 		*first = s->data;
 		*num_ret = s->position;
