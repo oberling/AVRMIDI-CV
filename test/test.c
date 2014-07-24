@@ -36,6 +36,10 @@ midinote_t playing_notes[NUM_PLAY_NOTES];
 playmode_t mode[NUM_PLAY_MODES];
 uint8_t playmode = POLYPHONIC_MODE;
 
+typedef struct {
+	uint8_t byte[3];
+} testnote_t;
+
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
 	switch(m->byte[0]) {
@@ -78,6 +82,15 @@ void init_variables(void) {
 	mode[UNISON_MODE].update_notes = update_notes_unison;
 }
 
+void insert_midibuffer_test(testnote_t n) {
+	assert(midibuffer_put(&midi_buffer, n.byte[0]) == true);
+	assert(midibuffer_put(&midi_buffer, n.byte[1]) == true);
+	assert(midibuffer_put(&midi_buffer, n.byte[2]) == true);
+	assert(midi_buffer.buffer.buffer[midi_buffer.buffer.pos_read+0] == n.byte[0]);
+	assert(midi_buffer.buffer.buffer[midi_buffer.buffer.pos_read+1] == n.byte[1]);
+	assert(midi_buffer.buffer.buffer[midi_buffer.buffer.pos_read+2] == n.byte[2]);
+}
+
 int main(int argc, char** argv) {
 	uint8_t i=0;
 	printf("testing init_variables() ");
@@ -104,30 +117,32 @@ int main(int argc, char** argv) {
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==false);
 	}
 	printf(" success\n");
+	testnote_t a;
+	a.byte[0] = NOTE_ON;
+	a.byte[1] = 0xff;
+	a.byte[2] = 0xdd;
 	printf("inserting note into midibuffer");
 	{
-		assert(midibuffer_put(&midi_buffer, NOTE_ON)==true);
-		assert(midibuffer_put(&midi_buffer, 0xff)==true);
-		assert(midibuffer_put(&midi_buffer, 0xdd)==true);
-		assert(midi_buffer.buffer.buffer[0] == NOTE_ON);
-		assert(midi_buffer.buffer.buffer[1] == 0xff);
-		assert(midi_buffer.buffer.buffer[2] == 0xdd);
+		insert_midibuffer_test(a);
+	}
+	printf(" success\n");
+	printf("testing midibuffer positions");
+	{
 		assert(midi_buffer.buffer.pos_read == 0);
 		assert(midi_buffer.buffer.pos_write == 3);
 	}
 	printf(" success\n");
-	printf("testing our note");
+	printf("testing our midibuffer_tick");
 	{
-		assert(midibuffer_tick(&midi_buffer)==true);
-		assert(midi_buffer.buffer.pos_read == 3);
-		assert(midi_buffer.buffer.pos_write == 3);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midibuffer_tick(&midi_buffer) == false);
 	}
 	printf(" success\n");
 	printf("checking note arrived on note_stack");
 	{
 		midinote_t* it;
 		uint8_t num_notes = 0;
-		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==true);
+		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
 		assert(num_notes == 1);
 		assert(it->note == 0xff);
 		assert(it->velocity == 0xdd);
@@ -136,7 +151,7 @@ int main(int argc, char** argv) {
 	printf("checking note handling");
 	{
 		assert(playing_notes[0].note == 0x00);
-		mode[playmode].update_notes(&note_stack, &playing_notes);
+		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].note == 0xff);
 	}
 	printf(" success\n");
@@ -144,10 +159,18 @@ int main(int argc, char** argv) {
 	{
 		memset(playing_notes, 0, sizeof(midinote_t)*NUM_PLAY_NOTES);
 		assert(playing_notes[0].note == 0x00 && playing_notes[0].velocity == 0x00);
-		mode[playmode].update_notes(&note_stack, &playing_notes);
+		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].note == 0xff && playing_notes[0].velocity == 0xdd);
 	}
 	printf(" success\n");
-
+	printf("testing NOTE_OFF-Handling");
+	{
+		a.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].note == 0x00);
+	}
+	printf(" success\n");
 	return 0;
 }
