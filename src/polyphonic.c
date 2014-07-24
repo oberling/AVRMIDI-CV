@@ -9,9 +9,9 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing
 	// at 16 MHz -> 12µs (at 5 CMDs per iteration (240CMDs): 15µs)
 	// +3µs per command on deepes loop layer
 	midinote_t* it;
-	uint8_t actual_played_notes;
-	uint8_t i=0;
-	uint8_t j=0;
+	uint8_t actual_played_notes = 0;
+	uint8_t i = 0;
+	uint8_t j = 0;
 	bool found = false;
 	// get the actually to be played notes
 	midinote_stack_peek_n(note_stack, NUM_PLAY_NOTES, &it, &actual_played_notes);
