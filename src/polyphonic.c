@@ -8,8 +8,7 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing
 	// worst: O(n) = 3n² // with n = NUM_PLAY_NOTES -> 3*4²*4 CMDs = 192 CMDs
 	// at 16 MHz -> 12µs (at 5 CMDs per iteration (240CMDs): 15µs)
 	// +3µs per command on deepes loop layer
-	midinote_t mnotes[NUM_PLAY_NOTES];
-	midinote_t* it = mnotes;
+	midinote_t* it;
 	uint8_t actual_played_notes;
 	uint8_t i=0;
 	uint8_t j=0;
@@ -20,7 +19,7 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing
 	for(i=0; i<NUM_PLAY_NOTES; i++) {
 		found = false;
 		for(;j<actual_played_notes; j++) {
-			if(mnotes[j].note==playing_notes[i].note) {
+			if((it+j)->note==(playing_notes+i)->note) {
 				found = true;
 				break;
 			}
@@ -33,15 +32,15 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing
 	for(i=0;i<actual_played_notes; i++) {
 		found = false;
 		for(j=0;j<NUM_PLAY_NOTES; j++) {
-			if(mnotes[j].note==playing_notes[i].note) {
+			if((it+i)->note==(playing_notes+j)->note) {
 				found = true;
 				break;
 			}
 		}
 		if(!found) {
 			for(j=0; j<NUM_PLAY_NOTES; j++) {
-				if(playing_notes[i].note == 0) {
-					playing_notes[i] = mnotes[j];
+				if((playing_notes+j)->note == 0) {
+					*(playing_notes+j) = *(it+i);
 					break;
 				}
 			}
