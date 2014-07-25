@@ -25,9 +25,14 @@ bool ringbuffer_peek(ringbuffer_t* b, unsigned char* out) {
 
 bool ringbuffer_getn_or_nothing(ringbuffer_t* b, unsigned char* out, uint8_t num_bytes) {
 	uint8_t i=0;
-	if((num_bytes > RINGBUFFER_SIZE) || // can't return more bytes than size of buffer
+	if(
+		(num_bytes > RINGBUFFER_SIZE) || // can't return more bytes than size of buffer
 		(b->pos_read == b->pos_write) || // won't return a byte if our buffer is empty
-		(((b->pos_read+num_bytes) & RINGBUFFER_MASK)>b->pos_write)) // not enough bytes in buffer
+		(
+			(b->pos_read < b->pos_write) &&  // otherwise we already had a buffer_overflow
+			(((b->pos_read+num_bytes) & RINGBUFFER_MASK) > b->pos_write)
+		) // not enough bytes in buffer
+	)
 		return false;
 	// we have enough bytes - return them
 	do {

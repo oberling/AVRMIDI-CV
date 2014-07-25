@@ -86,13 +86,38 @@ void insert_midibuffer_test(testnote_t n) {
 	assert(midibuffer_put(&midi_buffer, n.byte[0]) == true);
 	assert(midibuffer_put(&midi_buffer, n.byte[1]) == true);
 	assert(midibuffer_put(&midi_buffer, n.byte[2]) == true);
-	assert(midi_buffer.buffer.buffer[midi_buffer.buffer.pos_read+0] == n.byte[0]);
-	assert(midi_buffer.buffer.buffer[midi_buffer.buffer.pos_read+1] == n.byte[1]);
-	assert(midi_buffer.buffer.buffer[midi_buffer.buffer.pos_read+2] == n.byte[2]);
+	uint8_t i=0;
+	for(;i<3; i++) {
+		if(midi_buffer.buffer.pos_write-(3-i)<0) {
+			assert(midi_buffer.buffer.buffer[RINGBUFFER_SIZE+midi_buffer.buffer.pos_write-(3-i)] == n.byte[i]);
+		} else {
+			assert(midi_buffer.buffer.buffer[midi_buffer.buffer.pos_write-(3-i)] == n.byte[i]);
+		}
+	}
 }
 
 int main(int argc, char** argv) {
 	uint8_t i=0;
+	testnote_t a;
+	a.byte[0] = NOTE_ON;
+	a.byte[1] = 0xff;
+	a.byte[2] = 0xdd;
+	testnote_t b;
+	b.byte[0] = NOTE_ON;
+	b.byte[1] = 0xee;
+	b.byte[2] = 0xcc;
+	testnote_t c;
+	c.byte[0] = NOTE_ON;
+	c.byte[1] = 0xbb;
+	c.byte[2] = 0xaa;
+	testnote_t d;
+	d.byte[0] = NOTE_ON;
+	d.byte[1] = 0x99;
+	d.byte[2] = 0x88;
+	testnote_t e;
+	e.byte[0] = NOTE_ON;
+	e.byte[1] = 0x77;
+	e.byte[2] = 0x66;
 	printf("testing init_variables() ");
 	{
 		init_variables();
@@ -117,10 +142,6 @@ int main(int argc, char** argv) {
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==false);
 	}
 	printf(" success\n");
-	testnote_t a;
-	a.byte[0] = NOTE_ON;
-	a.byte[1] = 0xff;
-	a.byte[2] = 0xdd;
 	printf("inserting note into midibuffer");
 	{
 		insert_midibuffer_test(a);
@@ -138,6 +159,21 @@ int main(int argc, char** argv) {
 		assert(midibuffer_tick(&midi_buffer) == false);
 	}
 	printf(" success\n");
+	printf("testing some ringbuffer behaviour {");
+	{
+		printf("\n");
+		printf("\tnot getting more than buffersize ");
+		char mybuffer[RINGBUFFER_SIZE*2];
+		assert(ringbuffer_getn_or_nothing(&(midi_buffer.buffer), mybuffer, RINGBUFFER_SIZE*2)==false);
+		printf("success\n");
+		printf("\tnot getting anything if buffer rings ");
+		uint8_t old_read = midi_buffer.buffer.pos_read;
+		midi_buffer.buffer.pos_read = midi_buffer.buffer.pos_write;
+		assert(ringbuffer_getn_or_nothing(&(midi_buffer.buffer), mybuffer, 1)==false);
+		midi_buffer.buffer.pos_read = old_read;
+		printf("success\n");
+	}
+	printf("} success\n");
 	printf("checking note arrived on note_stack");
 	{
 		midinote_t* it;
@@ -172,5 +208,42 @@ int main(int argc, char** argv) {
 		assert(playing_notes[0].note == 0x00);
 	}
 	printf(" success\n");
+	printf("testing multiple notes {");
+	{
+		printf("\n");
+		a.byte[0] = NOTE_ON;
+		printf("\tinserting some notes... ");
+		uint8_t pos_read_test = midi_buffer.buffer.pos_read;
+		insert_midibuffer_test(a);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(b);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(c);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(d);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(e);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(a);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(b);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(c);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		printf(" success\n");
+		// making the buffer overflow
+		printf("\tinserting buffer_overflow_note... ");
+		insert_midibuffer_test(d);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		printf(" success\n");
+		printf("\ttaking them over to the stack... ");
+		uint8_t i=0;
+		for(; i<9; i++) {
+			assert(midibuffer_tick(&midi_buffer) == true);
+		}
+		assert(midibuffer_tick(&midi_buffer) == false);
+		printf(" success\n");
+	}
+	printf("} success\n");
 	return 0;
 }
