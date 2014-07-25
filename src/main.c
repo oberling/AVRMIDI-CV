@@ -1,4 +1,3 @@
-#include "defines.h"
 #include "uart.h"
 #include "dac8568c.h"
 #include "midi_datatypes.h"

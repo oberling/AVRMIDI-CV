@@ -2,7 +2,15 @@
 #define __UART_H_
 #include <avr/io.h>
 #include <stdbool.h>
-#include "defines.h"
+
+#ifndef BAUD
+#pragma message "BAUD not defined - defaulting to 9600UL"
+#define BAUD	9600UL
+#endif
+#ifndef F_CPU
+#pragma message "F_CPU not defined - defaulting to 16000000UL"
+#define F_CPU	16000000UL
+#endif
 
 #define UBRR_VAL ((F_CPU+BAUD*8)/(BAUD*16)-1)   // clever rounding
 #define BAUD_REAL (F_CPU/(16*(UBRR_VAL+1)))     // Real baudrate

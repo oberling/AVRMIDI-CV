@@ -1,4 +1,3 @@
-#include "defines.h"
 #include "dac8568c.h"
 #include "spi.h"
 #include <stdbool.h>

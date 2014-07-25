@@ -1,8 +1,11 @@
 #include <string.h>
 #include "polyphonic.h"
-#include "defines.h"
 #include "midi_datatypes.h"
 #include "midinote_stack.h"
+
+#ifndef NUM_PLAY_NOTES
+#error "please include some -DNUM_PLAY_NOTES in your Makefile describing how many notes can be played simultanously!"
+#endif
 
 void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing_notes) {
 	// worst: O(n) = 3n² // with n = NUM_PLAY_NOTES -> 3*4²*4 CMDs = 192 CMDs

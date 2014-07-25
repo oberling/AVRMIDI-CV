@@ -1,6 +1,5 @@
 #ifndef _MIDI_DATATYPES_H_
 #define _MIDI_DATATYPES_H_
-#include "defines.h"
 #include <stdint.h>
 
 #ifndef MIDI_CHANNEL

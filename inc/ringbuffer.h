@@ -1,8 +1,8 @@
 #ifndef __RINGBUFFER_H_
 #define __RINGBUFFER_H_
-#include "defines.h"
 #include <stdint.h>
 #include <stdbool.h>
+
 #ifndef RINGBUFFER_SIZE
 #pragma message "RINGBUFFER_SIZE not defined - defaulting to 8"
 #define RINGBUFFER_SIZE (8)
