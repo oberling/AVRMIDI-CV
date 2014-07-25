@@ -52,7 +52,7 @@ bool midinote_stack_peek_n(midinote_stack_t* s, uint8_t num_req, midinote_t** fi
 		*num_ret = s->position;
 		return true;
 	}
-	*first = s->data+(s->position-1)-num_req;
+	*first = (s->data)+(s->position)-num_req;
 	*num_ret = num_req;
 	return true;
 }

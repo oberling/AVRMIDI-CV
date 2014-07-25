@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
 	{
 		printf("\n");
 		printf("\tnot getting more than buffersize ");
-		char mybuffer[RINGBUFFER_SIZE*2];
+		unsigned char mybuffer[RINGBUFFER_SIZE*2];
 		assert(ringbuffer_getn_or_nothing(&(midi_buffer.buffer), mybuffer, RINGBUFFER_SIZE*2)==false);
 		printf("success\n");
 		printf("\tnot getting anything if buffer rings ");
@@ -241,7 +241,36 @@ int main(int argc, char** argv) {
 		for(; i<9; i++) {
 			assert(midibuffer_tick(&midi_buffer) == true);
 		}
+		printf(" success\n");
+		printf("\ttrying empty buffer again");
 		assert(midibuffer_tick(&midi_buffer) == false);
+		printf(" success\n");
+		printf("\ttesting peek for 4 notes but with 5 on stack");
+		insert_midibuffer_test(a);
+		insert_midibuffer_test(b);
+		insert_midibuffer_test(c);
+		insert_midibuffer_test(d);
+		insert_midibuffer_test(e);
+		midinote_stack_init(&note_stack);
+		for(i=0;i<5;i++) {
+			midibuffer_tick(&midi_buffer);
+		}
+		midinote_t* it;
+		uint8_t num_notes = 0;
+		assert(midinote_stack_peek_n(&note_stack, 4, &it, &num_notes) == true);
+		assert(num_notes==4);
+		assert(it->note == b.byte[1]);
+		assert(it->velocity == b.byte[2]);
+		printf(" success\n");
+		printf("\tremoving one note from playing notes");
+		b.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(b);
+		midibuffer_tick(&midi_buffer);
+		num_notes = 0;
+		assert(midinote_stack_peek_n(&note_stack, 4, &it, &num_notes) == true);
+		assert(num_notes == 4);
+		assert(it->note == a.byte[1]);
+		assert(it->velocity == a.byte[2]);
 		printf(" success\n");
 	}
 	printf("} success\n");
