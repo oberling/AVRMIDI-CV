@@ -261,6 +261,13 @@ int main(int argc, char** argv) {
 		assert(it->note == b.byte[1]);
 		assert(it->velocity == b.byte[2]);
 		printf(" success\n");
+	}
+	printf("} success\n");
+	printf("testing polyphonic mode {");
+	{
+		printf("\n");
+		midinote_t* it;
+		uint8_t num_notes = 0;
 		printf("\ttesting playnotes in polyphonic mode");
 		{
 			playmode = POLYPHONIC_MODE;
@@ -300,10 +307,27 @@ int main(int argc, char** argv) {
 		num_notes = 0;
 		assert(midinote_stack_peek_n(&note_stack, 4, &it, &num_notes) == true);
 		assert(num_notes == 3);
+		printf(" success\n");
+		printf("\ttesting playnotes in polyphonic mode now again");
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].note == a.byte[1]);
 		assert(playing_notes[1].note == c.byte[1]);
 		assert(playing_notes[2].note == 0x00);
+		assert(playing_notes[3].note == e.byte[1]);
+		printf(" success\n");
+		printf("\tinserting a new note");
+		b.byte[0] = NOTE_ON;
+		insert_midibuffer_test(b);
+		midibuffer_tick(&midi_buffer);
+		num_notes = 0;
+		assert(midinote_stack_peek_n(&note_stack, 4, &it, &num_notes) == true);
+		assert(num_notes == 4);
+		printf(" success\n");
+		printf("\ttesting playnotes in polyphonic mode now again");
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].note == a.byte[1]);
+		assert(playing_notes[1].note == c.byte[1]);
+		assert(playing_notes[2].note == b.byte[1]);
 		assert(playing_notes[3].note == e.byte[1]);
 		printf(" success\n");
 	}
