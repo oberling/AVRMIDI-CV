@@ -261,6 +261,16 @@ int main(int argc, char** argv) {
 		assert(it->note == b.byte[1]);
 		assert(it->velocity == b.byte[2]);
 		printf(" success\n");
+		printf("\ttesting playnotes in polyphonic mode");
+		{
+			playmode = POLYPHONIC_MODE;
+			mode[playmode].update_notes(&note_stack, playing_notes);
+			assert(playing_notes[0].note == b.byte[1]);
+			assert(playing_notes[1].note == c.byte[1]);
+			assert(playing_notes[2].note == d.byte[1]);
+			assert(playing_notes[3].note == e.byte[1]);
+		}
+		printf(" success\n");
 		printf("\tremoving one note from playing notes");
 		b.byte[0] = NOTE_OFF;
 		insert_midibuffer_test(b);
@@ -270,6 +280,31 @@ int main(int argc, char** argv) {
 		assert(num_notes == 4);
 		assert(it->note == a.byte[1]);
 		assert(it->velocity == a.byte[2]);
+		assert((it+1)->note == c.byte[1]);
+		assert((it+1)->velocity == c.byte[2]);
+		printf(" success\n");
+		printf("\ttesting playnotes in polyphonic mode now again");
+		{
+			playmode = POLYPHONIC_MODE;
+			mode[playmode].update_notes(&note_stack, playing_notes);
+			assert(playing_notes[0].note == a.byte[1]);
+			assert(playing_notes[1].note == c.byte[1]);
+			assert(playing_notes[2].note == d.byte[1]);
+			assert(playing_notes[3].note == e.byte[1]);
+		}
+		printf(" success\n");
+		printf("\tremoving another note and test again");
+		d.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(d);
+		midibuffer_tick(&midi_buffer);
+		num_notes = 0;
+		assert(midinote_stack_peek_n(&note_stack, 4, &it, &num_notes) == true);
+		assert(num_notes == 3);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].note == a.byte[1]);
+		assert(playing_notes[1].note == c.byte[1]);
+		assert(playing_notes[2].note == 0x00);
+		assert(playing_notes[3].note == e.byte[1]);
 		printf(" success\n");
 	}
 	printf("} success\n");

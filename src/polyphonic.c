@@ -21,7 +21,7 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing
 	// remove nonplaying notes - leave alone the still playing notes
 	for(i=0; i<NUM_PLAY_NOTES; i++) {
 		found = false;
-		for(;j<actual_played_notes; j++) {
+		for(j=0;j<actual_played_notes; j++) {
 			if((it+j)->note==(playing_notes+i)->note) {
 				found = true;
 				break;
