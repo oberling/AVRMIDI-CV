@@ -425,6 +425,19 @@ int main(int argc, char** argv) {
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==false);
 	}
 	printf(" success\n");
+	printf("testing some nasty SYSEX_Messages");
+	{
+		assert(midibuffer_put(&midi_buffer, SYSEX_BEGIN) == true);
+		assert(midibuffer_put(&midi_buffer, 0x11) == true);
+		assert(midibuffer_put(&midi_buffer, 0x22) == true);
+		assert(midibuffer_put(&midi_buffer, 0x33) == true);
+		insert_midibuffer_test(b);
+		assert(midibuffer_put(&midi_buffer, SYSEX_END) == true);
+		assert(midibuffer_tick(&midi_buffer) == false);
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+	}
+	printf(" success\n");
 
 	return 0;
 }
