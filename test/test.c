@@ -332,5 +332,67 @@ int main(int argc, char** argv) {
 		printf(" success\n");
 	}
 	printf("} success\n");
+	printf("testing unison mode {");
+	{
+		printf("\n");
+		printf("\tinitializing everything");
+		init_variables();
+		playmode = UNISON_MODE;
+		a.byte[0] = NOTE_ON;
+		b.byte[0] = NOTE_ON;
+		c.byte[0] = NOTE_ON;
+		d.byte[0] = NOTE_ON;
+		e.byte[0] = NOTE_ON;
+		uint8_t pos_read_test = midi_buffer.buffer.pos_read;
+		insert_midibuffer_test(a);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(b);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(c);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(d);
+		assert(midi_buffer.buffer.pos_read == pos_read_test);
+		insert_midibuffer_test(e);
+		uint8_t i=0;
+		for(; i<5; i++) {
+			assert(midibuffer_tick(&midi_buffer) == true);
+		}
+		printf(" success\n");
+		printf("\tnow checking one note");
+		midinote_t* it;
+		uint8_t num_notes;
+		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
+		assert(num_notes == 1);
+		assert(it->note == e.byte[1]);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].note == e.byte[1]);
+		assert(playing_notes[1].note == e.byte[1]);
+		assert(playing_notes[2].note == e.byte[1]);
+		assert(playing_notes[3].note == e.byte[1]);
+		printf(" success\n");
+		printf("\ttrying to remove one note");
+		d.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(d);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		num_notes = 0;
+		assert(midinote_stack_peek_n(&note_stack, 2, &it, &num_notes) == true);
+		assert(it->note == c.byte[1]);
+		printf(" success\n");
+		printf("\tremoving playing note");
+		e.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(e);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
+		assert(it->note == c.byte[1]);
+		printf(" success\n");
+		printf("\tchecking for correct remaining playing note");
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].note == c.byte[1]);
+		assert(playing_notes[1].note == c.byte[1]);
+		assert(playing_notes[2].note == c.byte[1]);
+		assert(playing_notes[3].note == c.byte[1]);
+		printf(" success\n");
+	}
+	printf("} success\n");
 	return 0;
 }
