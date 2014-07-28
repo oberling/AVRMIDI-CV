@@ -394,5 +394,30 @@ int main(int argc, char** argv) {
 		printf(" success\n");
 	}
 	printf("} success\n");
+	printf("testing empty buffer and stack again after some notes");
+	{
+		a.byte[0] = NOTE_OFF;
+		b.byte[0] = NOTE_OFF;
+		c.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(a);
+		insert_midibuffer_test(b);
+		insert_midibuffer_test(c);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midibuffer_tick(&midi_buffer) == false);
+		assert(midibuffer_tick(&midi_buffer) == false);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		midinote_t mnote;
+		midinote_t* it = &mnote;
+		uint8_t num_notes;
+		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==false);
+		assert(playing_notes[0].note == 0x00);
+		assert(playing_notes[1].note == 0x00);
+		assert(playing_notes[2].note == 0x00);
+		assert(playing_notes[3].note == 0x00);
+	}
+	printf(" success\n");
+
 	return 0;
 }
