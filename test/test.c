@@ -135,8 +135,7 @@ int main(int argc, char** argv) {
 	printf("testing empty buffer and stack");
 	{
 		assert(midibuffer_tick(&midi_buffer)==false);
-		midinote_t mnote;
-		midinote_t* it = &mnote;
+		midinote_t* it;
 		uint8_t num_notes;
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==false);
 	}
@@ -408,14 +407,22 @@ int main(int argc, char** argv) {
 		assert(midibuffer_tick(&midi_buffer) == false);
 		assert(midibuffer_tick(&midi_buffer) == false);
 		mode[playmode].update_notes(&note_stack, playing_notes);
-		midinote_t mnote;
-		midinote_t* it = &mnote;
+		midinote_t* it;
 		uint8_t num_notes;
-		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==false);
+		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == false);
 		assert(playing_notes[0].note == 0x00);
 		assert(playing_notes[1].note == 0x00);
 		assert(playing_notes[2].note == 0x00);
 		assert(playing_notes[3].note == 0x00);
+	}
+	printf(" success\n");
+	printf("testing some NOTE_OFF-Events for non-playing notes");
+	{
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		midinote_t* it;
+		uint8_t num_notes;
+		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes)==false);
 	}
 	printf(" success\n");
 

@@ -31,7 +31,7 @@ bool midinote_stack_remove(midinote_stack_t* s, note_t remnote) {
 	uint8_t i=0;
 	while(s->data[i].note != remnote && i<MIDINOTE_STACK_SIZE)
 		i++;
-	if(i>MIDINOTE_STACK_SIZE)
+	if(i>=MIDINOTE_STACK_SIZE)
 		return false;
 	while(i<MIDINOTE_STACK_SIZE) {
 		s->data[i] = s->data[i+1];
