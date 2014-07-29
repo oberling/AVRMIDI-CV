@@ -438,6 +438,40 @@ int main(int argc, char** argv) {
 		assert(midibuffer_tick(&midi_buffer) == true);
 	}
 	printf(" success\n");
+	printf("testing gate-setting process");
+	{
+		a.byte[0] = NOTE_ON;
+		b.byte[0] = NOTE_ON;
+		c.byte[0] = NOTE_ON;
+		d.byte[0] = NOTE_ON;
+		insert_midibuffer_test(a);
+		insert_midibuffer_test(b);
+		insert_midibuffer_test(c);
+		insert_midibuffer_test(d);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		playmode = POLYPHONIC_MODE;
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].note == a.byte[1]);
+		assert(playing_notes[1].note == b.byte[1]);
+		assert(playing_notes[2].note == c.byte[1]);
+		assert(playing_notes[3].note == d.byte[1]);
+		uint8_t i=0;
+		uint8_t gateport = 0;
+		uint8_t HARDWARE_GATEPORT = 0;
+		for(;i<NUM_PLAY_NOTES; i++) {
+			if(playing_notes[i].note != 0) {
+				gateport |= (1<<i);
+			} else {
+				gateport &= ~(1<<i);
+			}
+		}
+		HARDWARE_GATEPORT |= gateport;
+		assert(HARDWARE_GATEPORT == 15);
+	}
+	printf(" success\n");
 
 	return 0;
 }

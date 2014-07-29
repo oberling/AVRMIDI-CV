@@ -12,9 +12,12 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#define LED_PORT	PORTC
-#define LED_DDR		DDRC
-#define LED_P0		PC0
+#define GATE_PORT	PORTC
+#define GATE_DDR		DDRC
+#define GATE1		PC0
+#define GATE2		PC1
+#define GATE3		PC2
+#define GATE4		PC3
 
 #define SET(x,y)	(x |= (y))
 #define ISSET(x,y)	(x & y)
@@ -105,6 +108,7 @@ void get_voltage(uint8_t val, uint32_t* voltage_out) {
 
 void update_dac(void) {
 	uint8_t i = 0;
+	uint8_t gateport = 0;
 	for(; i<NUM_PLAY_NOTES; i++) {
 		unsigned int note = playing_notes[i].note;
 		unsigned int velocity = playing_notes[i].velocity;
@@ -120,10 +124,11 @@ void update_dac(void) {
 		// they are already 0 here if this note is not playing and will get reset 
 		// implicitly here
 		if(playing_notes[i].note != 0) {
-			// TODO: send GATE Voltage to GATE-Pin for this channel
+			gateport |= (1<<i);
 		} else {
-			// TODO: send NON GATE Voltage to GATE-Pin for this channel
+			gateport &= ~(1<<i);
 		}
+		GATE_PORT |= gateport;
 		if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
 			// TODO: send TRIGGER Voltage to TRIGGER-Pin for this channel
 		} else {
@@ -142,7 +147,7 @@ void init_variables(void) {
 }
 
 void init_io(void) {
-	LED_DDR = (1<<LED_P0);
+	GATE_DDR = (1<<GATE1)|(1<<GATE2)|(1<<GATE3)|(1<<GATE4);
 	dac8568c_init();
 	uart_init();
 }
