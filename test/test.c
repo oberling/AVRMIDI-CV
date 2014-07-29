@@ -459,16 +459,14 @@ int main(int argc, char** argv) {
 		assert(playing_notes[2].note == c.byte[1]);
 		assert(playing_notes[3].note == d.byte[1]);
 		uint8_t i=0;
-		uint8_t gateport = 0;
 		uint8_t HARDWARE_GATEPORT = 0;
 		for(;i<NUM_PLAY_NOTES; i++) {
 			if(playing_notes[i].note != 0) {
-				gateport |= (1<<i);
+				HARDWARE_GATEPORT |= (1<<i);
 			} else {
-				gateport &= ~(1<<i);
+				HARDWARE_GATEPORT &= ~(1<<i);
 			}
 		}
-		HARDWARE_GATEPORT |= gateport;
 		assert(HARDWARE_GATEPORT == 15);
 	}
 	printf(" success\n");
