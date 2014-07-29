@@ -1,5 +1,6 @@
 #include "uart.h"
 #include "dac8568c.h"
+#include "datatypes.h"
 #include "midi_datatypes.h"
 #include "midibuffer.h"
 #include "midinote_stack.h"
@@ -13,11 +14,20 @@
 #include <util/delay.h>
 
 #define GATE_PORT	PORTC
-#define GATE_DDR		DDRC
+#define GATE_DDR	DDRC
 #define GATE1		PC0
 #define GATE2		PC1
 #define GATE3		PC2
 #define GATE4		PC3
+#define GATE_OFFSET	(0)
+
+#define TRIGGER_PORT	PORTD
+#define TRIGGER_DDR		DDRD
+#define TRIGGER1		PD2
+#define TRIGGER2		PD3
+#define TRIGGER3		PD4
+#define TRIGGER5		PD5
+#define TRIGGER_OFFSET	(2)
 
 #define SET(x,y)	(x |= (y))
 #define ISSET(x,y)	(x & y)
@@ -60,9 +70,10 @@ uint32_t voltage[10] = { 6700,
 
 midibuffer_t midi_buffer;
 midinote_stack_t note_stack;
-midinote_t playing_notes[NUM_PLAY_NOTES];
+playingnote_t playing_notes[NUM_PLAY_NOTES];
 playmode_t mode[NUM_PLAY_MODES];
 uint8_t playmode = POLYPHONIC_MODE;
+volatile bool must_update_dac = false;
 
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
@@ -109,8 +120,8 @@ void get_voltage(uint8_t val, uint32_t* voltage_out) {
 void update_dac(void) {
 	uint8_t i = 0;
 	for(; i<NUM_PLAY_NOTES; i++) {
-		unsigned int note = playing_notes[i].note;
-		unsigned int velocity = playing_notes[i].velocity;
+		unsigned int note = playing_notes[i].midinote.note;
+		unsigned int velocity = playing_notes[i].midinote.velocity;
 		uint32_t voltage = 0;
 		get_voltage(note, &voltage);
 		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
@@ -122,15 +133,15 @@ void update_dac(void) {
 		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes 
 		// they are already 0 here if this note is not playing and will get reset 
 		// implicitly here
-		if(playing_notes[i].note != 0) {
-			GATE_PORT |= (1<<i);
+		if(playing_notes[i].midinote.note != 0) {
+			GATE_PORT |= (1<<(i+(GATE_OFFSET)));
 		} else {
-			GATE_PORT &= ~(1<<i);
+			GATE_PORT &= ~(1<<(i+(GATE_OFFSET)));
 		}
-		if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
-			// TODO: send TRIGGER Voltage to TRIGGER-Pin for this channel
+		if(playing_notes[i].trigger_counter > 0) {
+			TRIGGER_PORT |= (1<<(i+(TRIGGER_OFFSET)));
 		} else {
-			// TODO: send NON-TRIGGER Voltage to TRIGGER-Pin for this channel
+			TRIGGER_PORT &= ~(1<<(i+(TRIGGER_OFFSET)));
 		}
 	}
 }
@@ -138,7 +149,7 @@ void update_dac(void) {
 void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
-	memset(playing_notes, 0, sizeof(midinote_t)*NUM_PLAY_NOTES);
+	memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 	memset(mode, 0, sizeof(playmode)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
 	mode[UNISON_MODE].update_notes = update_notes_unison;
@@ -146,6 +157,8 @@ void init_variables(void) {
 
 void init_io(void) {
 	GATE_DDR = (1<<GATE1)|(1<<GATE2)|(1<<GATE3)|(1<<GATE4);
+	TCCR0 = (1<<CS02)|(1<<CS00); // set prescaler to 1024 -> ~16ms
+	TIMSK |= (1<<TOIE0); // enable overflow timer interrupt
 	dac8568c_init();
 	uart_init();
 }
@@ -155,14 +168,22 @@ void long_delay(uint16_t ms) {
 }
 
 ISR(USART_RXC_vect) {
-	cli();
 	char a;
 	uart_getc(&a);
 	// this method only affects the writing position in the midibuffer
 	// therefor it's ISR-save as long as the buffer does not run out of
 	// space!!! prepare your buffers, everyone!
 	midibuffer_put(&midi_buffer, a);
-	sei();
+}
+
+ISR(TIMER1_OVF_vect) {
+	uint8_t i=0;
+	for(;i<NUM_PLAY_NOTES; i++) {
+		if(playing_notes[i].trigger_counter > 0) {
+			playing_notes[i].trigger_counter--;
+			must_update_dac = true;
+		}
+	}
 }
 
 int main(int argc, char** argv) {
@@ -172,19 +193,27 @@ int main(int argc, char** argv) {
 	init_io();
 	sei();
 	while(1) {
+		// handle midibuffer - update playing_notes accordingly
 		if(midibuffer_tick(&midi_buffer)) {
 			mode[playmode].update_notes(&note_stack, playing_notes);
 			update_dac();
 		}
+
+		// handle newly triggered notes
 		for(i=0;i<NUM_PLAY_NOTES; ++i) {
-			if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
-				UNSET(playing_notes[i].flags, TRIGGER_FLAG);
-				update = true;
+			if(ISSET(playing_notes[i].midinote.flags, TRIGGER_FLAG)) {
+				UNSET(playing_notes[i].midinote.flags, TRIGGER_FLAG);
+				playing_notes[i].trigger_counter = TRIGGER_COUNTER_INIT;
+				must_update_dac = true;
 			}
 		}
-		if(update) {
+
+		// as our TIMER_Interupt might change must_update_dac
+		// during update_dac() - which is fine - we have to
+		// eventually repeat update_dac() right away
+		while(must_update_dac) {
+			must_update_dac = false;
 			update_dac();
-			update = false;
 		}
 	}
 	return 0;

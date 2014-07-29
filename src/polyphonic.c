@@ -1,5 +1,6 @@
 #include <string.h>
 #include "polyphonic.h"
+#include "datatypes.h"
 #include "midi_datatypes.h"
 #include "midinote_stack.h"
 
@@ -7,7 +8,7 @@
 #error "please include some -DNUM_PLAY_NOTES in your Makefile describing how many notes can be played simultanously!"
 #endif
 
-void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing_notes) {
+void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* playing_notes) {
 	// worst: O(n) = 3n² // with n = NUM_PLAY_NOTES -> 3*4²*4 CMDs = 192 CMDs
 	// at 16 MHz -> 12µs (at 5 CMDs per iteration (240CMDs): 15µs)
 	// +3µs per command on deepes loop layer
@@ -22,28 +23,28 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, midinote_t* playing
 	for(i=0; i<NUM_PLAY_NOTES; i++) {
 		found = false;
 		for(j=0;j<actual_played_notes; j++) {
-			if((it+j)->note==(playing_notes+i)->note) {
+			if((it+j)->note==(playing_notes+i)->midinote.note) {
 				found = true;
 				break;
 			}
 		}
 		// reset that note as it isn't played anymore
 		if(!found)
-			memset(playing_notes+i, 0, sizeof(midinote_t));
+			memset(playing_notes+i, 0, sizeof(playingnote_t));
 	}
 	// add new playing notes - leave alone the already playing notes
 	for(i=0;i<actual_played_notes; i++) {
 		found = false;
 		for(j=0;j<NUM_PLAY_NOTES; j++) {
-			if((it+i)->note==(playing_notes+j)->note) {
+			if((it+i)->note==(playing_notes+j)->midinote.note) {
 				found = true;
 				break;
 			}
 		}
 		if(!found) {
 			for(j=0; j<NUM_PLAY_NOTES; j++) {
-				if((playing_notes+j)->note == 0) {
-					*(playing_notes+j) = *(it+i);
+				if((playing_notes+j)->midinote.note == 0) {
+					(playing_notes+j)->midinote = *(it+i);
 					break;
 				}
 			}
