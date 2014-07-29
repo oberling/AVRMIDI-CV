@@ -4,9 +4,9 @@ void uart_init(void) {
 	UBRRH = UBRR_VAL >> 8;
 	UBRRL = UBRR_VAL & 0xFF;
 	
-	UCSRB |= (1<<TXEN);  // UART TX einschalten
-	UCSRC  = (1<<URSEL)|(1<<UCSZ1)|(1<<UCSZ0);  // Asynchron 8N1
-	UCSRB |= (1<<RXEN);                        // UART RX einschalten
+	UCSRB |= (1<<TXEN);							// enable UART TX
+	UCSRC  = (1<<URSEL)|(1<<UCSZ1)|(1<<UCSZ0);  // asynchronous 8N1
+	UCSRB |= (1<<RXEN);							// enable UART RX
 	UCSRB |= (1<<RXCIE);
 }
 
