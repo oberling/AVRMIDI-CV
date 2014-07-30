@@ -10,6 +10,22 @@
 #include "polyphonic.h"
 #include "unison.h"
 
+#define GATE_PORT	PORTC
+#define GATE_DDR	DDRC
+#define GATE1		PC0
+#define GATE2		PC1
+#define GATE3		PC2
+#define GATE4		PC3
+#define GATE_OFFSET	(0)
+
+#define TRIGGER_PORT	PORTD
+#define TRIGGER_DDR		DDRD
+#define TRIGGER1		PD2
+#define TRIGGER2		PD3
+#define TRIGGER3		PD4
+#define TRIGGER4		PD5
+#define TRIGGER_OFFSET	(2)
+
 #define SET(x,y)	(x |= (y))
 #define ISSET(x,y)	(x & y)
 #define UNSET(x,y)	(x &= ~(y))
@@ -30,15 +46,31 @@ uint32_t voltage[10] = { 6700,
 						59100,
 						65650 };
 
+typedef struct {
+	uint8_t byte[3];
+} testnote_t;
+
 midibuffer_t midi_buffer;
 midinote_stack_t note_stack;
 playingnote_t playing_notes[NUM_PLAY_NOTES];
 playmode_t mode[NUM_PLAY_MODES];
 uint8_t playmode = POLYPHONIC_MODE;
+volatile bool must_update_dac = false;
 
-typedef struct {
-	uint8_t byte[3];
-} testnote_t;
+testnote_t a;
+testnote_t b;
+testnote_t c;
+testnote_t d;
+testnote_t e;
+
+bool midi_handler_function(midimessage_t* m);
+void get_voltage(uint8_t val, uint32_t* voltage_out);
+void init_variables(void);
+void init_notes(void);
+void prepare_four_notes_on_stack(void);
+void insert_midibuffer_test(testnote_t n);
+void timer1_overflow_function(void);
+void handle_trigger(void);
 
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
@@ -82,6 +114,39 @@ void init_variables(void) {
 	mode[UNISON_MODE].update_notes = update_notes_unison;
 }
 
+void init_notes(void) {
+	a.byte[0] = NOTE_ON;
+	a.byte[1] = 0xff;
+	a.byte[2] = 0xdd;
+	b.byte[0] = NOTE_ON;
+	b.byte[1] = 0xee;
+	b.byte[2] = 0xcc;
+	c.byte[0] = NOTE_ON;
+	c.byte[1] = 0xbb;
+	c.byte[2] = 0xaa;
+	d.byte[0] = NOTE_ON;
+	d.byte[1] = 0x99;
+	d.byte[2] = 0x88;
+	e.byte[0] = NOTE_ON;
+	e.byte[1] = 0x77;
+	e.byte[2] = 0x66;
+}
+
+void prepare_four_notes_on_stack(void) {
+	a.byte[0] = NOTE_ON;
+	b.byte[0] = NOTE_ON;
+	c.byte[0] = NOTE_ON;
+	d.byte[0] = NOTE_ON;
+	insert_midibuffer_test(a);
+	insert_midibuffer_test(b);
+	insert_midibuffer_test(c);
+	insert_midibuffer_test(d);
+	assert(midibuffer_tick(&midi_buffer) == true);
+	assert(midibuffer_tick(&midi_buffer) == true);
+	assert(midibuffer_tick(&midi_buffer) == true);
+	assert(midibuffer_tick(&midi_buffer) == true);
+}
+
 void insert_midibuffer_test(testnote_t n) {
 	assert(midibuffer_put(&midi_buffer, n.byte[0]) == true);
 	assert(midibuffer_put(&midi_buffer, n.byte[1]) == true);
@@ -96,28 +161,34 @@ void insert_midibuffer_test(testnote_t n) {
 	}
 }
 
+void timer1_overflow_function(void) {
+	uint8_t i=0;
+	for(;i<NUM_PLAY_NOTES; i++) {
+		if(playing_notes[i].trigger_counter > 0) {
+			playing_notes[i].trigger_counter--;
+			if(playing_notes[i].trigger_counter == 0) {
+				must_update_dac = true;
+			}
+		}
+	}
+}
+
+void handle_trigger(void) {
+	uint8_t i=0;
+	// handle newly triggered notes
+	for(;i<NUM_PLAY_NOTES; ++i) {
+		if(ISSET(playing_notes[i].midinote.flags, TRIGGER_FLAG)) {
+			UNSET(playing_notes[i].midinote.flags, TRIGGER_FLAG);
+			playing_notes[i].trigger_counter = TRIGGER_COUNTER_INIT;
+			must_update_dac = true;
+		}
+	}
+}
+
+
 int main(int argc, char** argv) {
 	uint8_t i=0;
-	testnote_t a;
-	a.byte[0] = NOTE_ON;
-	a.byte[1] = 0xff;
-	a.byte[2] = 0xdd;
-	testnote_t b;
-	b.byte[0] = NOTE_ON;
-	b.byte[1] = 0xee;
-	b.byte[2] = 0xcc;
-	testnote_t c;
-	c.byte[0] = NOTE_ON;
-	c.byte[1] = 0xbb;
-	c.byte[2] = 0xaa;
-	testnote_t d;
-	d.byte[0] = NOTE_ON;
-	d.byte[1] = 0x99;
-	d.byte[2] = 0x88;
-	testnote_t e;
-	e.byte[0] = NOTE_ON;
-	e.byte[1] = 0x77;
-	e.byte[2] = 0x66;
+	init_notes();
 	printf("testing init_variables() ");
 	{
 		init_variables();
@@ -245,6 +316,7 @@ int main(int argc, char** argv) {
 		assert(midibuffer_tick(&midi_buffer) == false);
 		printf(" success\n");
 		printf("\ttesting peek for 4 notes but with 5 on stack");
+		init_notes();
 		insert_midibuffer_test(a);
 		insert_midibuffer_test(b);
 		insert_midibuffer_test(c);
@@ -257,7 +329,7 @@ int main(int argc, char** argv) {
 		midinote_t* it;
 		uint8_t num_notes = 0;
 		assert(midinote_stack_peek_n(&note_stack, 4, &it, &num_notes) == true);
-		assert(num_notes==4);
+		assert(num_notes == 4);
 		assert(it->note == b.byte[1]);
 		assert(it->velocity == b.byte[2]);
 		printf(" success\n");
@@ -441,18 +513,8 @@ int main(int argc, char** argv) {
 	printf(" success\n");
 	printf("testing gate-setting process");
 	{
-		a.byte[0] = NOTE_ON;
-		b.byte[0] = NOTE_ON;
-		c.byte[0] = NOTE_ON;
-		d.byte[0] = NOTE_ON;
-		insert_midibuffer_test(a);
-		insert_midibuffer_test(b);
-		insert_midibuffer_test(c);
-		insert_midibuffer_test(d);
-		assert(midibuffer_tick(&midi_buffer) == true);
-		assert(midibuffer_tick(&midi_buffer) == true);
-		assert(midibuffer_tick(&midi_buffer) == true);
-		assert(midibuffer_tick(&midi_buffer) == true);
+		init_notes();
+		prepare_four_notes_on_stack();
 		playmode = POLYPHONIC_MODE;
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == a.byte[1]);
@@ -463,12 +525,47 @@ int main(int argc, char** argv) {
 		uint8_t HARDWARE_GATEPORT = 0;
 		for(;i<NUM_PLAY_NOTES; i++) {
 			if(playing_notes[i].midinote.note != 0) {
-				HARDWARE_GATEPORT |= (1<<i);
+				HARDWARE_GATEPORT |= (1<<(i+(GATE_OFFSET)));
 			} else {
-				HARDWARE_GATEPORT &= ~(1<<i);
+				HARDWARE_GATEPORT &= ~(1<<(i+(GATE_OFFSET)));
 			}
 		}
 		assert(HARDWARE_GATEPORT == 15);
+	}
+	printf(" success\n");
+	printf("testing trigger-setting and unsetting process");
+	{
+		init_variables();
+		init_notes();
+		prepare_four_notes_on_stack();
+		playmode = POLYPHONIC_MODE;
+		must_update_dac = false;
+		handle_trigger();
+		assert(must_update_dac == false);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].midinote.note == a.byte[1]);
+		assert(playing_notes[1].midinote.note == b.byte[1]);
+		assert(playing_notes[2].midinote.note == c.byte[1]);
+		assert(playing_notes[3].midinote.note == d.byte[1]);
+		uint8_t i=0;
+		for(;i<NUM_PLAY_NOTES; i++) {
+			assert(ISSET(playing_notes[i].midinote.flags, TRIGGER_FLAG)==true);
+		}
+		handle_trigger();
+		assert(must_update_dac == true);
+		// here we could already update our dac - but let's test that in a different test
+		must_update_dac = false;
+		for(i=TRIGGER_COUNTER_INIT; i>0; i--) {
+			timer1_overflow_function();
+			uint8_t j=0;
+			for(; j<NUM_PLAY_NOTES; j++) {
+				assert(playing_notes[j].trigger_counter == i-1);
+				if(i-1 != 0) {
+					assert(must_update_dac == false);
+				}
+			}
+		}
+		assert(must_update_dac == true);
 	}
 	printf(" success\n");
 

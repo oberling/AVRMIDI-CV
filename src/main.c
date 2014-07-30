@@ -185,14 +185,15 @@ ISR(TIMER1_OVF_vect) {
 	for(;i<NUM_PLAY_NOTES; i++) {
 		if(playing_notes[i].trigger_counter > 0) {
 			playing_notes[i].trigger_counter--;
-			must_update_dac = true;
+			if(playing_notes[i].trigger_counter-- == 0) {
+				must_update_dac = true;
+			}
 		}
 	}
 }
 
 int main(int argc, char** argv) {
 	uint8_t i = 0;
-	bool update = false;
 	init_variables();
 	init_io();
 	sei();
