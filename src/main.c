@@ -26,7 +26,7 @@
 #define TRIGGER1		PD2
 #define TRIGGER2		PD3
 #define TRIGGER3		PD4
-#define TRIGGER5		PD5
+#define TRIGGER4		PD5
 #define TRIGGER_OFFSET	(2)
 
 #define SET(x,y)	(x |= (y))
@@ -156,8 +156,12 @@ void init_variables(void) {
 }
 
 void init_io(void) {
+	// setting gate and trigger pins as output pins
 	GATE_DDR = (1<<GATE1)|(1<<GATE2)|(1<<GATE3)|(1<<GATE4);
-	TCCR0 = (1<<CS02)|(1<<CS00); // set prescaler to 1024 -> ~16ms
+	TRIGGER_DDR = (1<<TRIGGER1)|(1<<TRIGGER2)|(1<<TRIGGER3)|(1<<TRIGGER4);
+
+	// setting trigger timer
+	TCCR0 = (1<<CS02)|(1<<CS00); // set prescaler to 1024 -> ~16ms (@16MHz Clock)
 	TIMSK |= (1<<TOIE0); // enable overflow timer interrupt
 	dac8568c_init();
 	uart_init();
