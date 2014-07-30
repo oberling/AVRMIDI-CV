@@ -533,8 +533,10 @@ int main(int argc, char** argv) {
 		assert(HARDWARE_GATEPORT == 15);
 	}
 	printf(" success\n");
-	printf("testing trigger-setting and unsetting process");
+	printf("testing trigger-setting and unsetting process {");
 	{
+		printf("\n");
+		printf("\ttesting simultanous notes");
 		init_variables();
 		init_notes();
 		prepare_four_notes_on_stack();
@@ -566,8 +568,56 @@ int main(int argc, char** argv) {
 			}
 		}
 		assert(must_update_dac == true);
+		printf(" success\n");
+		printf("\ttesting some notes on and off");
+		init_variables();
+		init_notes();
+		playmode = POLYPHONIC_MODE;
+		insert_midibuffer_test(a);
+		midibuffer_tick(&midi_buffer);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		handle_trigger();
+		timer1_overflow_function(); //Note a TRIGGER_COUNTER_INIT-1
+		timer1_overflow_function(); //Note a TRIGGER_COUNTER_INIT-2
+		insert_midibuffer_test(b);
+		midibuffer_tick(&midi_buffer);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		timer1_overflow_function(); //...
+		handle_trigger();
+		insert_midibuffer_test(c);
+		midibuffer_tick(&midi_buffer);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		handle_trigger();
+		timer1_overflow_function(); //...
+		insert_midibuffer_test(d);
+		midibuffer_tick(&midi_buffer);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		handle_trigger();
+		timer1_overflow_function();
+		assert(playing_notes[0].trigger_counter == TRIGGER_COUNTER_INIT-5);
+		assert(playing_notes[1].trigger_counter == TRIGGER_COUNTER_INIT-2);
+		assert(playing_notes[2].trigger_counter == TRIGGER_COUNTER_INIT-2);
+		assert(playing_notes[3].trigger_counter == TRIGGER_COUNTER_INIT-1);
+		timer1_overflow_function();
+		if(TRIGGER_COUNTER_INIT == 6) // that's a little odd... but how else shall we do it?
+			assert(playing_notes[0].trigger_counter == 0);
+		assert(ISSET(playing_notes[0].midinote.flags, TRIGGER_FLAG) == false);
+		timer1_overflow_function();
+		timer1_overflow_function();
+		c.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(c);
+		midibuffer_tick(&midi_buffer);
+		assert(playing_notes[2].trigger_counter == TRIGGER_COUNTER_INIT-5);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[2].trigger_counter == 0);
+		assert(playing_notes[2].midinote.note == 0);
+		timer1_overflow_function();
+		assert(playing_notes[1].trigger_counter == 0);
+		assert(ISSET(playing_notes[1].midinote.flags, TRIGGER_FLAG) == false);
+		assert(playing_notes[3].trigger_counter == TRIGGER_COUNTER_INIT-5);
+		printf(" success\n");
 	}
-	printf(" success\n");
+	printf("} success\n");
 
 	return 0;
 }
