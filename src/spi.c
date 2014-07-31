@@ -13,9 +13,10 @@ void init_spi(void) {
 	SPSR = (1<<SPI2X);
 }
 
-void spi_transfer(uint8_t data) {
+uint8_t spi_transfer(uint8_t data) {
 	SPDR = data;
 	while(!(SPSR & (1<<SPIF)));
+	return SPDR;
 }
 
 

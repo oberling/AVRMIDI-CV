@@ -76,7 +76,7 @@ void dac8568c_disable_internal_ref(void) {
 }
 
 void __dac8568c_output_bytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, bool ldacswitch){
-	SPI_PORT &= (1<<SPI_SS);
+	SPI_PORT &= ~(1<<SPI_SS);
 	// wait till that pin is really set
 	__asm("nop\n\t");
 	spi_transfer(b1);
@@ -84,7 +84,7 @@ void __dac8568c_output_bytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, boo
 	spi_transfer(b3);
 	spi_transfer(b4);
 	if(ldacswitch) {
-		SPI_PORT |= ~(1<<LDAC_PIN);
+		SPI_PORT &= ~(1<<LDAC_PIN);
 		_delay_us(1);
 //		__asm("nop\n\t");
 		SPI_PORT |= (1<<LDAC_PIN);

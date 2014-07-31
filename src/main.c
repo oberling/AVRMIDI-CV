@@ -1,5 +1,6 @@
 #include "uart.h"
 #include "dac8568c.h"
+#include "sr74hc165.h"
 #include "datatypes.h"
 #include "midi_datatypes.h"
 #include "midibuffer.h"
@@ -36,6 +37,9 @@
 #define NUM_PLAY_MODES 2
 #define POLYPHONIC_MODE 0
 #define UNISON_MODE 1
+
+#define SHIFTIN_TRIGGER		(6)
+#define NUM_SHIFTIN_REG		(1)
 
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
@@ -74,10 +78,13 @@ playingnote_t playing_notes[NUM_PLAY_NOTES];
 playmode_t mode[NUM_PLAY_MODES];
 uint8_t playmode = POLYPHONIC_MODE;
 volatile bool must_update_dac = false;
+uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
+volatile bool get_shiftin = false;
 
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
 void update_dac(void);
+void process_user_input(void);
 void init_variables(void);
 void init_io(void);
 void long_delay(uint16_t ms);
@@ -146,6 +153,13 @@ void update_dac(void) {
 	}
 }
 
+void process_user_input(void) {
+	// only use a input as a uint8_t if NUM_SHIFTIN_REG equals 1...
+	uint8_t input = 0;
+	sr74hc165_read(&input, NUM_SHIFTIN_REG);
+	// TODO: now check which bits are set and do something with it :-)
+}
+
 void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
@@ -164,6 +178,7 @@ void init_io(void) {
 	TCCR0 = (1<<CS02)|(1<<CS00); // set prescaler to 1024 -> ~16ms (@16MHz Clock)
 	TIMSK |= (1<<TOIE0); // enable overflow timer interrupt
 	dac8568c_init();
+	sr74hc165_init(NUM_SHIFTIN_REG);
 	uart_init();
 }
 
@@ -189,6 +204,10 @@ ISR(TIMER1_OVF_vect) {
 				must_update_dac = true;
 			}
 		}
+	}
+	if(shift_in_trigger_counter-- == 0) {
+		shift_in_trigger_counter = SHIFTIN_TRIGGER;
+		get_shiftin = true;
 	}
 }
 
@@ -219,6 +238,10 @@ int main(int argc, char** argv) {
 		while(must_update_dac) {
 			must_update_dac = false;
 			update_dac();
+		}
+		if(get_shiftin) {
+			get_shiftin = false;
+			process_user_input();
 		}
 	}
 	return 0;
