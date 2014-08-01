@@ -3,9 +3,6 @@
 #include <stdbool.h>
 #include <util/delay.h>
 
-#define DACPORT		PORTB
-#define LDAC_PIN	PB0
-#define CLR_PIN		PB1
 
 #define DAC_TOGGLE_LDAC true
 
@@ -13,6 +10,13 @@ void __dac8568c_output_bytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, boo
 
 void dac8568c_init(void) {
 	init_spi();
+	DAC_DDR |= (1<<DAC_CS_PIN);
+	SPI_PORT &= ~(1<<SPI_MOSI);
+	DAC_PORT &= ~(1<<DAC_CS_PIN);
+	DAC_PORT |= (1<<DAC_LDAC_PIN);
+	DAC_PORT &= ~(1<<DAC_CLR_PIN);
+	_delay_us(10); // TODO: look up the really necessary delay here
+	DAC_PORT |= (1<<DAC_CLR_PIN);
 	dac8568c_write(DAC_SETUP_INTERNAL_REGISTER, 0, 1);
 }
 
@@ -76,7 +80,7 @@ void dac8568c_disable_internal_ref(void) {
 }
 
 void __dac8568c_output_bytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, bool ldacswitch){
-	SPI_PORT &= ~(1<<SPI_SS);
+	DAC_PORT &= ~(1<<DAC_CS_PIN);
 	// wait till that pin is really set
 	__asm("nop\n\t");
 	spi_transfer(b1);
@@ -84,16 +88,15 @@ void __dac8568c_output_bytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, boo
 	spi_transfer(b3);
 	spi_transfer(b4);
 	if(ldacswitch) {
-		SPI_PORT &= ~(1<<LDAC_PIN);
+		DAC_PORT &= ~(1<<DAC_LDAC_PIN);
 		_delay_us(1);
 //		__asm("nop\n\t");
-		SPI_PORT |= (1<<LDAC_PIN);
+		DAC_PORT |= (1<<DAC_LDAC_PIN);
 		_delay_us(1);
 //		__asm("nop\n\t");
 	}
 	_delay_us(1);
 //	__asm("nop\n\t");
-	SPI_PORT |= (1<<SPI_SS);
+	DAC_PORT |= (1<<DAC_CS_PIN);
 }
-
 

@@ -12,6 +12,27 @@
 #define DAC_RESET					(7)
 #define DAC_SETUP_INTERNAL_REGISTER	(8)
 
+#ifndef DAC_PORT
+#pragma message "DAC_PORT not defined - defaulting to PORTB"
+#define DAC_PORT	PORTB
+#endif
+#ifndef DAC_DDR
+#pragma message "DAC_DDR not defined - defaulting to DDRB"
+#define DAC_DDR		DDRB
+#endif
+#ifndef DAC_LDAC_PIN
+#pragma message "DAC_LDAC_PIN not defined - defaulting to PB0"
+#define DAC_LDAC_PIN	PB0
+#endif
+#ifndef DAC_CLR_PIN
+#pragma message "DAC_CLR_PIN not defined - defaulting to PB1"
+#define DAC_CLR_PIN		PB1
+#endif
+#ifndef DAC_CS_PIN
+#pragma message "DAC_CS_PIN not defined - defaulting to PB2"
+#define DAC_CS_PIN	PB2
+#endif
+
 /**
  * \brief Function to initialize the DAC8568C.
  * \description This function initializes the SPI Interface for usage

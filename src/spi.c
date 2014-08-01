@@ -3,7 +3,8 @@
 void init_spi(void) {
 	// Setting Up SPI Mode 
 	// PB2 - SS // PB3 - MOSI // PB5 - SCK
-	DDRB = (1<<PB2) | (1<<PB3) | (1<<PB5);
+	SPI_DDR |= (1<<SPI_MOSI) | (1<<SPI_SCK);
+	SPI_DDR &= ~(1<<SPI_MISO);
 	// PB4 - MISO
 	// DDRB &= ~(1<<PB4);
 	// SPE - SPI Enable // MSTR - is SPI Master // CPHA - Clock Phase
