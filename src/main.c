@@ -154,9 +154,8 @@ void update_dac(void) {
 }
 
 void process_user_input(void) {
-	// only use a input as a uint8_t if NUM_SHIFTIN_REG equals 1...
-	uint8_t input = 0;
-	sr74hc165_read(&input, NUM_SHIFTIN_REG);
+	uint8_t input[NUM_SHIFTIN_REG];
+	sr74hc165_read(input, NUM_SHIFTIN_REG);
 	// TODO: now check which bits are set and do something with it :-)
 }
 
