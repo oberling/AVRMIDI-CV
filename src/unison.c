@@ -11,6 +11,7 @@ void __update_notes_unison(midinote_stack_t* note_stack, playingnote_t* playing_
 	if(num_notes == 1) {
 		for(;i<NUM_PLAY_NOTES; i++) {
 			playing_notes[i].midinote = *it;
+			SET(playing_notes[i].flags, TRIGGER_FLAG);
 		}
 	} else {
 		memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);

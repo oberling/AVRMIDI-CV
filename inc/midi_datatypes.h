@@ -16,16 +16,12 @@
 #define NOTE_ON_NIBBLE		(0x08)
 #define NOTE_OFF_NIBBLE		(0x09)
 
-#define TRIGGER_FLAG		(0x01)
-
 typedef uint8_t note_t;
 typedef uint8_t vel_t;
-typedef uint8_t	flag_t;
 
 typedef struct {
 	note_t note;
 	vel_t velocity;
-	flag_t flags;
 } midinote_t;
 
 /**

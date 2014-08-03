@@ -30,10 +30,6 @@
 #define TRIGGER4		PD5
 #define TRIGGER_OFFSET	(2)
 
-#define SET(x,y)	(x |= (y))
-#define ISSET(x,y)	(x & y)
-#define UNSET(x,y)	(x &= ~(y))
-
 #define NUM_PLAY_MODES 2
 #define POLYPHONIC_MODE 0
 #define UNISON_MODE 1
@@ -97,7 +93,6 @@ bool midi_handler_function(midimessage_t* m) {
 		case NOTE_ON:
 			mnote.note = m->byte[1];
 			mnote.velocity = m->byte[2];
-			SET(mnote.flags, TRIGGER_FLAG);
 			midinote_stack_push(&note_stack, mnote);
 			break;
 		case NOTE_OFF:
@@ -229,8 +224,8 @@ int main(int argc, char** argv) {
 
 		// handle newly triggered notes
 		for(i=0;i<NUM_PLAY_NOTES; ++i) {
-			if(ISSET(playing_notes[i].midinote.flags, TRIGGER_FLAG)) {
-				UNSET(playing_notes[i].midinote.flags, TRIGGER_FLAG);
+			if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
+				UNSET(playing_notes[i].flags, TRIGGER_FLAG);
 				playing_notes[i].trigger_counter = TRIGGER_COUNTER_INIT;
 				must_update_dac = true;
 			}
