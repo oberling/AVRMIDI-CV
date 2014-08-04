@@ -15,12 +15,14 @@
 #define TRIGGER_FLAG		(0x01)
 
 typedef uint8_t triggercounter_t;
-typedef uint8_t	flag_t;
+typedef uint8_t retriggercounter_t;
+typedef uint8_t flag_t;
 
 typedef struct {
 	midinote_t midinote;
 	flag_t flags;
 	triggercounter_t trigger_counter;
+	retriggercounter_t retrigger_counter;
 } playingnote_t;
 
 #endif

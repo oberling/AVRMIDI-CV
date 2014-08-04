@@ -34,9 +34,12 @@
 #define POLYPHONIC_MODE 0
 #define UNISON_MODE 1
 
+// User Input defines
 #define SHIFTIN_TRIGGER		(6)
 #define NUM_SHIFTIN_REG		(1)
+// bits in the bytes to represent certain modes
 #define POLY_UNI_MODE		(0)
+#define RETRIGGER_INPUT_BIT	(1)
 
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
@@ -77,6 +80,12 @@ uint8_t playmode = POLYPHONIC_MODE;
 volatile bool must_update_dac = false;
 uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
 volatile bool get_shiftin = false;
+retriggercounter_t retrig = 1000;
+
+#define RETRIGGER (0)
+
+uint8_t program_options = 0x00;
+
 
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
@@ -157,6 +166,11 @@ void process_user_input(void) {
 	} else {
 		playmode = UNISON_MODE;
 	}
+	if(ISSET(input[0], RETRIGGER_INPUT_BIT)) {
+		SET(program_options, RETRIGGER);
+	} else {
+		UNSET(program_options, RETRIGGER);
+	}
 }
 
 void init_variables(void) {
@@ -201,6 +215,12 @@ ISR(TIMER1_OVF_vect) {
 			playing_notes[i].trigger_counter--;
 			if(playing_notes[i].trigger_counter-- == 0) {
 				must_update_dac = true;
+			}
+		}
+		if(ISSET(program_options, RETRIGGER)) {
+			if(playing_notes[i].retrigger_counter-- == 0) {
+				playing_notes[i].retrigger_counter = retrig;
+				SET(playing_notes[i].flags, TRIGGER_FLAG);
 			}
 		}
 	}
