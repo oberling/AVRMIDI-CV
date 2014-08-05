@@ -39,7 +39,15 @@
 #define NUM_SHIFTIN_REG		(1)
 // bits in the bytes to represent certain modes
 #define POLY_UNI_MODE		(0)
+// if set we will retrigger
 #define RETRIGGER_INPUT_BIT	(1)
+// have us 8 different clock trigger modes possible
+#define TRIGGER_CLOCK_BIT0		(2)
+#define TRIGGER_CLOCK_BIT1		(3)
+#define TRIGGER_CLOCK_BIT2		(4)
+#define TRIGGER_BIT_MASK		(7)
+// if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
+#define TRIGGER_ON_CLOCK_BIT	(5)
 
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
@@ -72,6 +80,17 @@ uint32_t voltage[10] = { 6700,
 						59100,
 						65650 };
 
+// 24 CLOCK_SIGNALs per Beat (Quarter note)
+// 96 - full note; 48 - half note; ... 3 - 32th note
+uint8_t clock_trigger_limit[8] = {	96,
+									48,
+									24,
+									18,
+									12,
+									9,
+									6,
+									3  };
+
 midibuffer_t midi_buffer;
 midinote_stack_t note_stack;
 playingnote_t playing_notes[NUM_PLAY_NOTES];
@@ -81,8 +100,13 @@ volatile bool must_update_dac = false;
 uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
 volatile bool get_shiftin = false;
 retriggercounter_t retrig = 1000;
+volatile bool update_clock = false;
+uint8_t midiclock_trigger_mode = 0;
+uint8_t midiclock_counter = 0;
+uint8_t midiclock_trigger_limit = 0;
 
-#define RETRIGGER (0)
+#define RETRIGGER			(0)
+#define TRIGGER_CLOCK		(1)
 
 uint8_t program_options = 0x00;
 
@@ -106,6 +130,18 @@ bool midi_handler_function(midimessage_t* m) {
 			break;
 		case NOTE_OFF:
 			midinote_stack_remove(&note_stack, m->byte[1]);
+			break;
+		case CLOCK_SIGNAL:
+			midiclock_counter++;
+			update_clock = true;
+			break;
+		case CLOCK_START:
+			midiclock_counter = 0;
+			break;
+		case CLOCK_STOP:
+			midiclock_counter = 0;
+			break;
+		case CLOCK_CONTINUE:
 			break;
 		default:
 			return false;
@@ -170,6 +206,26 @@ void process_user_input(void) {
 		SET(program_options, RETRIGGER);
 	} else {
 		UNSET(program_options, RETRIGGER);
+	}
+	if(ISSET(input[0], TRIGGER_ON_CLOCK_BIT)) {
+		SET(program_options, TRIGGER_CLOCK);
+	} else {
+		UNSET(program_options, TRIGGER_CLOCK);
+	}
+	midiclock_trigger_mode = ((input[0]>>TRIGGER_CLOCK_BIT0) & TRIGGER_BIT_MASK);
+}
+
+// INFO: assure that this function is called on each increment of midiclock_counter
+//       otherwise we may lose trigger-points
+void update_clock_trigger(void) {
+	midiclock_counter %= clock_trigger_limit[midiclock_trigger_mode];
+	if( midiclock_counter == 0 &&
+		(ISSET(program_options, TRIGGER_CLOCK))) {
+		uint8_t i=0;
+		for(; i<NUM_PLAY_NOTES; i++) {
+			SET(playing_notes[i].flags, TRIGGER_FLAG);
+		}
+		must_update_dac = true;
 	}
 }
 
@@ -261,6 +317,10 @@ int main(int argc, char** argv) {
 		if(get_shiftin) {
 			get_shiftin = false;
 			process_user_input();
+		}
+		if(update_clock) {
+			update_clock = false;
+			update_clock_trigger();
 		}
 	}
 	return 0;

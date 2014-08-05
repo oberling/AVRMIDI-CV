@@ -11,6 +11,10 @@
 // sysex-messages are ignored
 #define SYSEX_BEGIN			(0xF0)
 #define SYSEX_END			(0xF7)
+#define CLOCK_SIGNAL		(0xF8)
+#define CLOCK_START			(0xFA)
+#define CLOCK_CONTINUE		(0xFB)
+#define CLOCK_STOP			(0xFC)
 #define NOTE_ON				((0x80)|(MIDI_CHANNEL))
 #define NOTE_OFF			((0x90)|(MIDI_CHANNEL))
 #define NOTE_ON_NIBBLE		(0x08)

@@ -15,7 +15,7 @@
 #define TRIGGER_FLAG		(0x01)
 
 typedef uint8_t triggercounter_t;
-typedef uint8_t retriggercounter_t;
+typedef uint16_t retriggercounter_t;
 typedef uint8_t flag_t;
 
 typedef struct {
