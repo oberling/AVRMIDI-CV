@@ -273,7 +273,8 @@ ISR(TIMER1_OVF_vect) {
 				must_update_dac = true;
 			}
 		}
-		if(ISSET(program_options, RETRIGGER)) {
+		if(	ISSET(program_options, RETRIGGER) &&
+			(!ISSET(program_options, TRIGGER_CLOCK))) {
 			if(playing_notes[i].retrigger_counter-- == 0) {
 				playing_notes[i].retrigger_counter = retrig;
 				SET(playing_notes[i].flags, TRIGGER_FLAG);
