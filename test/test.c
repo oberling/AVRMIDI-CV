@@ -78,7 +78,6 @@ bool midi_handler_function(midimessage_t* m) {
 		case NOTE_ON:
 			mnote.note = m->byte[1];
 			mnote.velocity = m->byte[2];
-			SET(mnote.flags, TRIGGER_FLAG);
 			midinote_stack_push(&note_stack, mnote);
 			break;
 		case NOTE_OFF:
@@ -177,8 +176,8 @@ void handle_trigger(void) {
 	uint8_t i=0;
 	// handle newly triggered notes
 	for(;i<NUM_PLAY_NOTES; ++i) {
-		if(ISSET(playing_notes[i].midinote.flags, TRIGGER_FLAG)) {
-			UNSET(playing_notes[i].midinote.flags, TRIGGER_FLAG);
+		if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
+			UNSET(playing_notes[i].flags, TRIGGER_FLAG);
 			playing_notes[i].trigger_counter = TRIGGER_COUNTER_INIT;
 			must_update_dac = true;
 		}
@@ -195,7 +194,6 @@ int main(int argc, char** argv) {
 		for(;i<MIDINOTE_STACK_SIZE; i++) {
 			assert(note_stack.data[i].note == 0);
 			assert(note_stack.data[i].velocity == 0);
-			assert(note_stack.data[i].flags == 0);
 		}
 		for(i=0; i<RINGBUFFER_SIZE; i++) {
 			assert(midi_buffer.buffer.buffer[i] == 0);
@@ -551,7 +549,7 @@ int main(int argc, char** argv) {
 		assert(playing_notes[3].midinote.note == d.byte[1]);
 		uint8_t i=0;
 		for(;i<NUM_PLAY_NOTES; i++) {
-			assert(ISSET(playing_notes[i].midinote.flags, TRIGGER_FLAG)==true);
+			assert(ISSET(playing_notes[i].flags, TRIGGER_FLAG)==true);
 		}
 		handle_trigger();
 		assert(must_update_dac == true);
@@ -601,7 +599,7 @@ int main(int argc, char** argv) {
 		timer1_overflow_function();
 		if(TRIGGER_COUNTER_INIT == 6) // that's a little odd... but how else shall we do it?
 			assert(playing_notes[0].trigger_counter == 0);
-		assert(ISSET(playing_notes[0].midinote.flags, TRIGGER_FLAG) == false);
+		assert(ISSET(playing_notes[0].flags, TRIGGER_FLAG) == false);
 		timer1_overflow_function();
 		timer1_overflow_function();
 		c.byte[0] = NOTE_OFF;
@@ -613,7 +611,7 @@ int main(int argc, char** argv) {
 		assert(playing_notes[2].midinote.note == 0);
 		timer1_overflow_function();
 		assert(playing_notes[1].trigger_counter == 0);
-		assert(ISSET(playing_notes[1].midinote.flags, TRIGGER_FLAG) == false);
+		assert(ISSET(playing_notes[1].flags, TRIGGER_FLAG) == false);
 		assert(playing_notes[3].trigger_counter == TRIGGER_COUNTER_INIT-5);
 		printf(" success\n");
 	}
