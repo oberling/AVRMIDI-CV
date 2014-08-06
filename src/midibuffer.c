@@ -13,17 +13,26 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 	unsigned char byte;
 	// discard all sysex-message-bytes
 	do {
-		// check if we have a sysex-message here
+		// check if we have a sysex- or clock-message here
+		// ignore sysex; dispatch clock;
 		ringbuffer_peek(&(b->buffer), &byte);
-		if(byte == SYSEX_BEGIN) {
-			midibuffer_issysex = true;
-		} else if (byte == SYSEX_END) {
-			midibuffer_issysex = false;
-		} else {
-			// if not - get out of the do-while-loop
-			if(!midibuffer_issysex)
+		switch(byte) {
+			case SYSEX_BEGIN:
+				midibuffer_issysex = true;
+				break;
+			case SYSEX_END:
+				midibuffer_issysex = false;
+				ringbuffer_get(&(b->buffer), &byte);
+				break;
+			case CLOCK_SIGNAL:
+			case CLOCK_START:
+			case CLOCK_CONTINUE:
+			case CLOCK_STOP:
+				return ringbuffer_get(&(b->buffer), m->byte);
 				break;
 		}
+		if(!midibuffer_issysex)
+			break;
 		ringbuffer_get(&(b->buffer), &byte);
 	} while(!ringbuffer_empty(&(b->buffer)));
 	// get and return next midimessage
