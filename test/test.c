@@ -732,12 +732,32 @@ int main(int argc, char** argv) {
 		assert(midiclock_trigger_mode == 2);
 	}
 	printf(" success\n");
-	printf("testing midi_clock");
+	printf("testing midi_clock trigger");
 	{
 		midiclock_counter = 0;
-		assert(midibuffer_put(&midi_buffer, CLOCK_SIGNAL) == true);
-		assert(midibuffer_tick(&midi_buffer)==true);
-		assert(midiclock_counter == 1);
+		uint8_t j=0;
+		// testing it two times... just to make shure...
+		for(j=0; j<2; j++) {
+			uint8_t i=0;
+			for(i=0; i<NUM_PLAY_NOTES; i++) {
+				assert(ISSET(playing_notes[0].flags, TRIGGER_FLAG) == false);
+			}
+			for(i=0; i<clock_trigger_limit[midiclock_trigger_mode];i++) {
+				assert(midibuffer_put(&midi_buffer, CLOCK_SIGNAL) == true);
+				assert(midibuffer_tick(&midi_buffer) == true);
+				assert(midiclock_counter == i+1);
+				must_update_dac = false;
+				update_clock_trigger();
+				if(i+1 == clock_trigger_limit[midiclock_trigger_mode])
+					assert(must_update_dac == true);
+				else
+					assert(must_update_dac == false);
+			}
+			for(i=0; i<NUM_PLAY_NOTES; i++) {
+				assert(ISSET(playing_notes[0].flags, TRIGGER_FLAG) != false);
+			}
+			handle_trigger();
+		}
 	}
 	printf(" success\n");
 
