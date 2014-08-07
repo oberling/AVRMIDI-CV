@@ -26,10 +26,6 @@
 #define TRIGGER4		PD5
 #define TRIGGER_OFFSET	(2)
 
-#define SET(x,y)	(x |= (y))
-#define ISSET(x,y)	(x & y)
-#define UNSET(x,y)	(x &= ~(y))
-
 #define NUM_PLAY_MODES 2
 #define POLYPHONIC_MODE 0
 #define UNISON_MODE 1
