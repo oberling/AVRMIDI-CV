@@ -38,16 +38,16 @@
 #define SHIFTIN_TRIGGER		(6)
 #define NUM_SHIFTIN_REG		(1)
 // bits in the bytes to represent certain modes
-#define POLY_UNI_MODE		(0)
+#define POLY_UNI_MODE_BIT		(0x01)
 // if set we will retrigger
-#define RETRIGGER_INPUT_BIT	(1)
+#define RETRIGGER_INPUT_BIT		(0x02)
 // have us 8 different clock trigger modes possible
-#define TRIGGER_CLOCK_BIT0		(2)
-#define TRIGGER_CLOCK_BIT1		(3)
-#define TRIGGER_CLOCK_BIT2		(4)
-#define TRIGGER_BIT_MASK		(7)
+#define TRIGGER_CLOCK_BIT0		(0x04)
+#define TRIGGER_CLOCK_BIT1		(0x08)
+#define TRIGGER_CLOCK_BIT2		(0x10)
+#define TRIGGER_BIT_MASK		(0x0F)
 // if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
-#define TRIGGER_ON_CLOCK_BIT	(5)
+#define TRIGGER_ON_CLOCK_BIT	(0x20)
 
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
@@ -105,8 +105,8 @@ uint8_t midiclock_trigger_mode = 0;
 uint8_t midiclock_counter = 0;
 uint8_t midiclock_trigger_limit = 0;
 
-#define RETRIGGER			(0)
-#define TRIGGER_CLOCK		(1)
+#define RETRIGGER			(0x01)
+#define TRIGGER_CLOCK		(0x02)
 
 uint8_t program_options = 0x00;
 
@@ -197,7 +197,7 @@ void update_dac(void) {
 void process_user_input(void) {
 	uint8_t input[NUM_SHIFTIN_REG];
 	sr74hc165_read(input, NUM_SHIFTIN_REG);
-	if(ISSET(input[0], POLY_UNI_MODE)) {
+	if(ISSET(input[0], POLY_UNI_MODE_BIT)) {
 		playmode = POLYPHONIC_MODE;
 	} else {
 		playmode = UNISON_MODE;
