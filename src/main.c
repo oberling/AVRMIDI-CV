@@ -269,7 +269,7 @@ ISR(TIMER1_OVF_vect) {
 	for(;i<NUM_PLAY_NOTES; i++) {
 		if(playing_notes[i].trigger_counter > 0) {
 			playing_notes[i].trigger_counter--;
-			if(playing_notes[i].trigger_counter-- == 0) {
+			if(playing_notes[i].trigger_counter == 0) {
 				must_update_dac = true;
 			}
 		}
