@@ -1,3 +1,4 @@
+#include "analog_in.h"
 #include "uart.h"
 #include "dac8568c.h"
 #include "sr74hc165.h"
@@ -248,6 +249,7 @@ void init_io(void) {
 	TIMSK |= (1<<TOIE0); // enable overflow timer interrupt
 	dac8568c_init();
 	sr74hc165_init(NUM_SHIFTIN_REG);
+	init_analogin();
 	uart_init();
 }
 
