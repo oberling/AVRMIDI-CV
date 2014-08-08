@@ -758,6 +758,16 @@ int main(int argc, char** argv) {
 			}
 			handle_trigger();
 		}
+		assert(midibuffer_put(&midi_buffer, CLOCK_SIGNAL) == true);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midiclock_counter == 1);
+		must_update_dac = false;
+		update_clock_trigger();
+		assert(must_update_dac == false);
+		assert(midibuffer_put(&midi_buffer, CLOCK_STOP) == true);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		assert(midiclock_counter == 0);
+		must_update_dac = false;
 	}
 	printf(" success\n");
 
