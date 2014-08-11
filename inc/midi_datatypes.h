@@ -7,6 +7,10 @@
 #define MIDI_CHANNEL		(4)
 #endif
 
+//
+// midi-definitions from http://www.midi.org/techspecs/midimessages.php
+//
+
 #define STATUS_NIBBLE(x)	(x>>4)
 // sysex-messages are ignored
 #define SYSEX_BEGIN			(0xF0)
@@ -15,8 +19,8 @@
 #define CLOCK_START			(0xFA)
 #define CLOCK_CONTINUE		(0xFB)
 #define CLOCK_STOP			(0xFC)
-#define NOTE_ON				((0x80)|(MIDI_CHANNEL))
-#define NOTE_OFF			((0x90)|(MIDI_CHANNEL))
+#define NOTE_OFF			((0x80)|(MIDI_CHANNEL))
+#define NOTE_ON				((0x90)|(MIDI_CHANNEL))
 #define NOTE_ON_NIBBLE		(0x08)
 #define NOTE_OFF_NIBBLE		(0x09)
 

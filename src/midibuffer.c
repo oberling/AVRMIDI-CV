@@ -35,6 +35,11 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 			break;
 		ringbuffer_get(&(b->buffer), &byte);
 	} while(!ringbuffer_empty(&(b->buffer)));
+
+	//
+	// midi-definitions from http://www.midi.org/techspecs/midimessages.php
+	//
+	
 	uint8_t msg = byte >> 4;
 	// prefer NOTE_MESSAGES - this may boost performance
 	if(msg == 0x8 || msg == 0x9 || msg == 0xD)
