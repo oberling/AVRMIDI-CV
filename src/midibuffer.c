@@ -35,8 +35,30 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 			break;
 		ringbuffer_get(&(b->buffer), &byte);
 	} while(!ringbuffer_empty(&(b->buffer)));
+	uint8_t msg = byte >> 4;
+	// prefer NOTE_MESSAGES - this may boost performance
+	if(msg == 0x8 || msg == 0x9 || msg == 0xD)
+		return ringbuffer_getn_or_nothing(&(b->buffer), m->byte, 3);
+	// ignore everything below note_on-events
+	if(msg < 0x8) return false;
+	// return program change and channel pressure
+	if(msg == 0xC || msg == 0xD)
+		return ringbuffer_getn_or_nothing(&(b->buffer), m->byte, 2);
+	// MIDI Time Code Quarter Frame or Song Select
+	if(byte == 0xF1 || byte == 0xF3)
+		return ringbuffer_getn_or_nothing(&(b->buffer), m->byte, 2);
+	// just ignore all other (one byte) SYSTEM_MESSAGES
+	if(msg == 0xF) return false;
+/*
+	if(byte == 0xF4) return false; // undefined
+	if(byte == 0xF5) return false; // undefined
+	if(byte == 0xF6) return false; // Tune Request
+	if(byte == 0xFD) return false; // undefined
+	if(byte == 0xFE) return false; // active sensing
+	if(byte == 0xFF) return false; // reset
+*/
 	// get and return next midimessage
-	return ringbuffer_getn_or_nothing(&(b->buffer), m->byte, sizeof(midimessage_t));
+	return ringbuffer_getn_or_nothing(&(b->buffer), m->byte, 3);
 }
 
 bool midibuffer_empty(midibuffer_t* b) {
