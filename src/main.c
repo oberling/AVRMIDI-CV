@@ -31,11 +31,14 @@
 #define TRIGGER4		PD5
 #define TRIGGER_OFFSET	(2)
 
-#define NUM_PLAY_MODES 2
-#define POLYPHONIC_MODE 0
-#define UNISON_MODE 1
+#define RETRIGGER_POTI_CHANNEL	(4)
+
+#define NUM_PLAY_MODES	(2)
+#define POLYPHONIC_MODE	(0)
+#define UNISON_MODE		(1)
 
 // User Input defines
+#define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
 #define NUM_SHIFTIN_REG		(1)
 // bits in the bytes to represent certain modes
@@ -100,6 +103,8 @@ uint8_t playmode = POLYPHONIC_MODE;
 volatile bool must_update_dac = false;
 uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
 volatile bool get_shiftin = false;
+uint8_t analog_in_counter = ANALOG_READ_COUNTER;
+volatile bool get_analogin = false;
 retriggercounter_t retrig = 1000;
 volatile bool update_clock = false;
 uint8_t midiclock_trigger_mode = 0;
@@ -116,6 +121,7 @@ bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
 void update_dac(void);
 void process_user_input(void);
+void process_analog_in(void);
 void init_variables(void);
 void init_io(void);
 void long_delay(uint16_t ms);
@@ -216,6 +222,10 @@ void process_user_input(void) {
 	midiclock_trigger_mode = ((input[0]>>TRIGGER_CLOCK_BIT0) & TRIGGER_BIT_MASK);
 }
 
+void process_analog_in(void) {
+	retrig = analog_read(RETRIGGER_POTI_CHANNEL);
+}
+
 // INFO: assure that this function is called on each increment of midiclock_counter
 //       otherwise we may lose trigger-points
 void update_clock_trigger(void) {
@@ -287,6 +297,10 @@ ISR(TIMER1_OVF_vect) {
 		shift_in_trigger_counter = SHIFTIN_TRIGGER;
 		get_shiftin = true;
 	}
+	if(analog_in_counter-- == 0) {
+		analog_in_counter = ANALOG_READ_COUNTER;
+		get_analogin = true;
+	}
 }
 
 int main(int argc, char** argv) {
@@ -320,6 +334,10 @@ int main(int argc, char** argv) {
 		if(get_shiftin) {
 			get_shiftin = false;
 			process_user_input();
+		}
+		if(get_analogin) {
+			get_analogin = false;
+			process_analog_in();
 		}
 		if(update_clock) {
 			update_clock = false;
