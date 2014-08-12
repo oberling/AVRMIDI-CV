@@ -287,8 +287,8 @@ ISR(TIMER1_OVF_vect) {
 		}
 		if(	ISSET(program_options, RETRIGGER) &&
 			(!ISSET(program_options, TRIGGER_CLOCK))) {
-			if(playing_notes[i].retrigger_counter-- == 0) {
-				playing_notes[i].retrigger_counter = retrig;
+			if(playing_notes[i].retrigger_counter++ >= retrig) {
+				playing_notes[i].retrigger_counter = 0;
 				SET(playing_notes[i].flags, TRIGGER_FLAG);
 			}
 		}
