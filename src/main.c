@@ -256,7 +256,10 @@ void init_io(void) {
 
 	// setting trigger timer
 	TCCR0 = (1<<CS02)|(1<<CS00); // set prescaler to 1024 -> ~16ms (@16MHz Clock)
-	TIMSK |= (1<<TOIE0); // enable overflow timer interrupt
+	// calculation: 16000000Hz/1024 = 15625Hz trigger-rate
+	//              15625Hz/256 = 61.035Hz overflow-rate (8-bit timer)
+	//              1/61.035Hz = 16.3ms per overflow
+	TIMSK |= (1<<TOIE0); // enable overflow timer interrupt for timer 0
 	dac8568c_init();
 	sr74hc165_init(NUM_SHIFTIN_REG);
 	init_analogin();
@@ -276,7 +279,8 @@ ISR(USART_RXC_vect) {
 	midibuffer_put(&midi_buffer, a);
 }
 
-ISR(TIMER1_OVF_vect) {
+// ISR for timer 0 overflow - every ~16ms (calculation see init_io())
+ISR(TIMER0_OVF_vect) {
 	uint8_t i=0;
 	for(;i<NUM_PLAY_NOTES; i++) {
 		if(playing_notes[i].trigger_counter > 0) {
