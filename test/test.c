@@ -10,7 +10,9 @@
 #include "polyphonic.h"
 #include "unison.h"
 
-#define GATE_PORT	PORTC
+#define DAC_WRITE_UPDATE_N			(3)
+
+#define GATE_PORT	gate_port
 #define GATE_DDR	DDRC
 #define GATE1		PC0
 #define GATE2		PC1
@@ -18,7 +20,7 @@
 #define GATE4		PC3
 #define GATE_OFFSET	(0)
 
-#define TRIGGER_PORT	PORTD
+#define TRIGGER_PORT	trigger_port
 #define TRIGGER_DDR		DDRD
 #define TRIGGER1		PD2
 #define TRIGGER2		PD3
@@ -26,11 +28,14 @@
 #define TRIGGER4		PD5
 #define TRIGGER_OFFSET	(2)
 
+#define RETRIGGER_POTI_CHANNEL	(4)
+
 #define NUM_PLAY_MODES 2
 #define POLYPHONIC_MODE 0
 #define UNISON_MODE 1
 
 // User Input defines
+#define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
 #define NUM_SHIFTIN_REG		(1)
 // bits in the bytes to represent certain modes
@@ -68,11 +73,6 @@ uint8_t clock_trigger_limit[8] = {	96,
 									6,
 									3  };
 
-typedef struct {
-	uint8_t byte[3];
-} testnote_t;
-uint8_t input_buffer[NUM_SHIFTIN_REG];
-
 midibuffer_t midi_buffer;
 midinote_stack_t note_stack;
 playingnote_t playing_notes[NUM_PLAY_NOTES];
@@ -81,6 +81,8 @@ uint8_t playmode = POLYPHONIC_MODE;
 volatile bool must_update_dac = false;
 uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
 volatile bool get_shiftin = false;
+uint8_t analog_in_counter = ANALOG_READ_COUNTER;
+volatile bool get_analogin = false;
 retriggercounter_t retrig = 1000;
 volatile bool update_clock = false;
 uint8_t midiclock_trigger_mode = 0;
@@ -92,20 +94,41 @@ uint8_t midiclock_trigger_limit = 0;
 
 uint8_t program_options = 0x00;
 
+// additional variables to emulate hardware I/O
+uint8_t gate_port = 0x00;
+uint8_t trigger_port = 0x00;
+uint8_t input_buffer[NUM_SHIFTIN_REG];
+uint16_t analog_input_value = 0x00;
+// ----------------------------------------------
+
+// some additional variables needed for our tests
+typedef struct {
+	uint8_t byte[3];
+} testnote_t;
 testnote_t a;
 testnote_t b;
 testnote_t c;
 testnote_t d;
 testnote_t e;
+// ----------------------------------------------
 
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
+void update_dac(void);
+void process_user_input(void);
+void process_analog_in(void);
 void init_variables(void);
+void init_io(void);
+
+// some additional functions needed for our tests
+void dac8568c_write(uint8_t command, uint8_t address, uint32_t data);
+void sr74hc165_read(uint8_t* buffer, uint8_t numsr);
 void init_notes(void);
 void prepare_four_notes_on_stack(void);
 void insert_midibuffer_test(testnote_t n);
 void timer1_overflow_function(void);
 void handle_trigger(void);
+// ----------------------------------------------
 
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
@@ -151,6 +174,75 @@ void get_voltage(uint8_t val, uint32_t* voltage_out) {
 	}
 }
 
+void update_dac(void) {
+	uint8_t i = 0;
+	for(; i<NUM_PLAY_NOTES; i++) {
+		unsigned int note = playing_notes[i].midinote.note;
+		unsigned int velocity = playing_notes[i].midinote.velocity;
+		uint32_t voltage = 0;
+		get_voltage(note, &voltage);
+		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
+		// Send velocity
+		get_voltage(velocity, &voltage);
+		dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+
+		// not putting this if-clause at start because we would have to reset all 
+		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes 
+		// they are already 0 here if this note is not playing and will get reset 
+		// implicitly here
+		if(playing_notes[i].midinote.note != 0) {
+			GATE_PORT |= (1<<(i+(GATE_OFFSET)));
+		} else {
+			GATE_PORT &= ~(1<<(i+(GATE_OFFSET)));
+		}
+		if(playing_notes[i].trigger_counter > 0) {
+			TRIGGER_PORT |= (1<<(i+(TRIGGER_OFFSET)));
+		} else {
+			TRIGGER_PORT &= ~(1<<(i+(TRIGGER_OFFSET)));
+		}
+	}
+}
+
+void process_user_input(void) {
+	uint8_t input[NUM_SHIFTIN_REG];
+	sr74hc165_read(input, NUM_SHIFTIN_REG);
+	if(ISSET(input[0], POLY_UNI_MODE_BIT)) {
+		playmode = POLYPHONIC_MODE;
+	} else {
+		playmode = UNISON_MODE;
+	}
+	if(ISSET(input[0], RETRIGGER_INPUT_BIT)) {
+		SET(program_options, RETRIGGER);
+	} else {
+		UNSET(program_options, RETRIGGER);
+	}
+	if(ISSET(input[0], TRIGGER_ON_CLOCK_BIT)) {
+		SET(program_options, TRIGGER_CLOCK);
+	} else {
+		UNSET(program_options, TRIGGER_CLOCK);
+	}
+	midiclock_trigger_mode = ((input[0]>>TRIGGER_CLOCK_BIT0) & TRIGGER_BIT_MASK);
+}
+
+void process_analog_in(void) {
+	assert(analog_input_value<1024);
+	retrig = analog_input_value;
+}
+
+// INFO: assure that this function is called on each increment of midiclock_counter
+//       otherwise we may lose trigger-points
+void update_clock_trigger(void) {
+	midiclock_counter %= clock_trigger_limit[midiclock_trigger_mode];
+	if( midiclock_counter == 0 &&
+		(ISSET(program_options, TRIGGER_CLOCK))) {
+		uint8_t i=0;
+		for(; i<NUM_PLAY_NOTES; i++) {
+			SET(playing_notes[i].flags, TRIGGER_FLAG);
+		}
+		must_update_dac = true;
+	}
+}
+
 void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
@@ -158,6 +250,10 @@ void init_variables(void) {
 	memset(mode, 0, sizeof(playmode)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
 	mode[UNISON_MODE].update_notes = update_notes_unison;
+}
+
+void init_io(void) {
+	// don't have no hardware - nothing to do here...
 }
 
 void init_notes(void) {
@@ -213,41 +309,9 @@ void sr74hc165_read(uint8_t* buffer, uint8_t numsr) {
 	}
 }
 
-void process_user_input(void) {
-	uint8_t input[NUM_SHIFTIN_REG];
-	sr74hc165_read(input, NUM_SHIFTIN_REG);
-	if(ISSET(input[0], POLY_UNI_MODE_BIT)) {
-		playmode = POLYPHONIC_MODE;
-	} else {
-		playmode = UNISON_MODE;
-	}
-	if(ISSET(input[0], RETRIGGER_INPUT_BIT)) {
-		SET(program_options, RETRIGGER);
-	} else {
-		UNSET(program_options, RETRIGGER);
-	}
-	if(ISSET(input[0], TRIGGER_ON_CLOCK_BIT)) {
-		SET(program_options, TRIGGER_CLOCK);
-	} else {
-		UNSET(program_options, TRIGGER_CLOCK);
-	}
-	midiclock_trigger_mode = ((input[0]>>TRIGGER_CLOCK_BIT0) & TRIGGER_BIT_MASK);
+void dac8568c_write(uint8_t command, uint8_t address, uint32_t data) {
+	// don't have no hardware here - hard to test
 }
-
-// INFO: assure that this function is called on each increment of midiclock_counter
-//       otherwise we may lose trigger-points
-void update_clock_trigger(void) {
-	midiclock_counter %= clock_trigger_limit[midiclock_trigger_mode];
-	if( midiclock_counter == 0 &&
-		(ISSET(program_options, TRIGGER_CLOCK))) {
-		uint8_t i=0;
-		for(; i<NUM_PLAY_NOTES; i++) {
-			SET(playing_notes[i].flags, TRIGGER_FLAG);
-		}
-		must_update_dac = true;
-	}
-}
-
 
 void timer1_overflow_function(void) {
 	uint8_t i=0;
