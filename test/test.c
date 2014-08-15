@@ -160,11 +160,6 @@ bool midi_handler_function(midimessage_t* m) {
 }
 
 void get_voltage(uint8_t val, uint32_t* voltage_out) {
-	// we ignore the first octave... why so ever...
-	if(val<12) {
-		*voltage_out = 0;
-		return;
-	}
 	uint8_t i = (val/12); // which octave are we in?
 	float step = (val-(i*12))/12.0; // relative position in octave
 	if(i>0) {
@@ -832,6 +827,22 @@ int main(int argc, char** argv) {
 		assert(midibuffer_tick(&midi_buffer) == true);
 		assert(midiclock_counter == 0);
 		must_update_dac = false;
+	}
+	printf(" success\n");
+	printf("testing get_voltage ");
+	{
+		uint8_t val = 0;
+		uint32_t out = 1;
+		uint8_t i=0;
+		for(; i<10; i++) {
+			uint8_t j=0;
+			for(;j<12; j++) {
+				out = 1;
+				get_voltage(val, &out);
+				val++;
+				assert(out<voltage[i]);
+			}
+		}
 	}
 	printf(" success\n");
 

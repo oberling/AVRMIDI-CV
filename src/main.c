@@ -73,6 +73,8 @@
 //unsigned long voltage5 = 65735;
 
 // those voltages will be doubled by the OpAmp
+// adjust these values to get the DAC output a
+// linear signal over the whole range!
 uint32_t voltage[10] = { 6700,
 						13250,
 						19800,
@@ -158,11 +160,6 @@ bool midi_handler_function(midimessage_t* m) {
 
 
 void get_voltage(uint8_t val, uint32_t* voltage_out) {
-	// we ignore the first octave... why so ever...
-	if(val<12) {
-		*voltage_out = 0;
-		return;
-	}
 	uint8_t i = (val/12); // which octave are we in?
 	float step = (val-(i*12))/12.0; // relative position in octave
 	if(i>0) {
