@@ -855,6 +855,12 @@ int main(int argc, char** argv) {
 				assert(out<voltage[i]);
 			}
 		}
+		get_voltage(127,&out);
+		assert(out<=65536);
+		// test impossibly high value - though it will never occur in 7-Bit MIDI-Data...
+		// but who knows...
+		get_voltage(255, &out);
+		assert(out<=65536);
 	}
 	printf(" success\n");
 
