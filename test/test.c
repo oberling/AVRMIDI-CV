@@ -50,17 +50,27 @@
 // if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
 #define TRIGGER_ON_CLOCK_BIT	(0x20)
 
-// those voltages will be doubled by the OpAmp
-uint32_t voltage[10] = { 6700,
-						13250,
-						19800,
-						26350,
-						32900,
-						39450,
-						46000,
-						52550,
-						59100,
-						65650 };
+// those voltages created for the values by the DAC
+// will be ~doubled by a OpAmp
+// (not exactly doubled because it's 127 at 5V but the
+// 10th octave completes at 120 already - so we must
+// land at something like
+//		(10V/120semitones)*127semitones = 10.5833V
+// if we output 5V from the dac for the 127th semitone
+// - that makes a factor of amplification of 2.1166666)
+uint32_t voltage[11] = {
+	6192, // calculated: ((2^16)/127)*0*12
+	12385,// calculated: ((2^16)/127)*1*12
+	18577,// calculated: ((2^16)/127)*2*12
+	24769,// ... u get it :-)
+	30962,
+	37154,
+	43347,
+	49539,
+	55731,
+	61924,
+	68116
+};
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
 // 96 - full note; 48 - half note; ... 3 - 32th note
@@ -167,6 +177,8 @@ void get_voltage(uint8_t val, uint32_t* voltage_out) {
 	} else {
 		*voltage_out = (voltage[i])*step;
 	}
+	if(*voltage_out > 65536)
+		*voltage_out = 65536;
 }
 
 void update_dac(void) {
