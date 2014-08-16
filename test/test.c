@@ -74,14 +74,16 @@ uint32_t voltage[11] = {
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
 // 96 - full note; 48 - half note; ... 3 - 32th note
-uint8_t clock_trigger_limit[8] = {	96,
-									48,
-									24,
-									18,
-									12,
-									9,
-									6,
-									3  };
+uint8_t clock_trigger_limit[8] = {
+	96,
+	48,
+	24,
+	18,
+	12,
+	9,
+	6,
+	3
+};
 
 midibuffer_t midi_buffer;
 midinote_stack_t note_stack;

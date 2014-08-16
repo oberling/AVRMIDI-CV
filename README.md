@@ -23,6 +23,7 @@ What i have not yet tested and cannot test in software only is if it also works 
 
 TODO
 ====
+* write tests for all the modules
 * design a circuit
 * test on device
 
