@@ -1,0 +1,63 @@
+12V from 5V power supply
+those 12V feed all the doubling OpAmps
+the doubling OpAmps are realized connecting one inlet to the output of the DAC and the other via an adjustable 10KOhm 25-turn resistor, Ground and a 5 KOhm resistor to the output of the OpAmp
+there are 4 KeyCV outputs needed from the DAC and 4 Velocity outputs - makes 8 DAC-Outputs
+PB - 0 - 7  = 8 Pins
+PC - 0 - 6  = 7 Pins
+PD - 0 - 7  = 8 Pins
+-2 Pins (XTAL)
+-4 Pins (SPI)
+-2 Pins (DAC)
+-2 Pins (UART - MIDI)
+-1 Pin	(RESET)
+= 12 Pins left
+4 Pins (Gate)
+4 Pins (Trigger) 
+= 4 Pins left
+
+more precise:
+PB0		-	LDAC_PIN (DA8568)
+PB1		-	CLR_PIN (DA8568)
+PB2		-	SS
+PB3		-	MOSI
+PB4		-	MISO
+PB5		-	SCK
+PB6		-	XTAL	(16 MHz)
+PB7		-	XTAL	(16 MHz)
+
+PC0	ADC0	-		(GATE1)
+PC1	ADC1	-		(GATE2)
+PC2	ADC2	-		(GATE3)
+PC3	ADC3	-		(GATE4)
+PC4	ADC4	-		(POTI)
+PC5	ADC5	-		(POTI)
+PC6			-	RESET
+
+PD0		-	RXD		(MIDI-IN)
+PD1		-	TXD
+PD2		-			(TRIG1)
+PD3		-			(TRIG2)
+PD4		-			(TRIG3)
+PD5		-			(TRIG4)
+PD6		-			(CE_PIN)
+PD7		-			(PL_PIN)
+
+switchable GATE-/TRIGGER-Voltages via jumper and OpAmp
+
+would be nice:
+	7 segment display for midi channel
+	button to cycle through midi channels (1 Pin) - hardware debouncing!
+	7 segment display for operating mode
+	poti for portamento (1 Pin)
+
+would be easy:
+	power LED
+
+other implementations:
+	arpeggiator - not neccessary... will be done by the DAW (would also need MIDI-Clock and stuff)
+	protamento - not neccessary... will be done by the synth (would be difficult to implement efficiently but is easy for the synth)
+	variable midi-channel - might be considerable :)
+
+Multiswitch for modes:
+	8 modes - 3 bit;
+
