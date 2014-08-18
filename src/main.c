@@ -143,8 +143,10 @@ bool midi_handler_function(midimessage_t* m) {
 		case NOTE_ON:
 			mnote.note = m->byte[1];
 			mnote.velocity = m->byte[2];
-			midinote_stack_push(&note_stack, mnote);
-			break;
+			if(mnote.velocity != 0x00) {
+				midinote_stack_push(&note_stack, mnote);
+				break;
+			}
 		case NOTE_OFF:
 			midinote_stack_remove(&note_stack, m->byte[1]);
 			break;
