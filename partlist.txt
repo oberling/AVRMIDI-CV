@@ -1,0 +1,7 @@
+// NOT COMPLETE YET
+1*atmega8
+1*16MHz clock
+2*22pF
+1*220 Ohm
+1*10k Ohm
+1*2N4148
