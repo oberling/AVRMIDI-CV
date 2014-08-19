@@ -3,8 +3,8 @@
 #include <stdint.h>
 
 #ifndef MIDI_CHANNEL
-#pragma message	"MIDI_CHANNEL not defined - defining as Channel 4"
-#define MIDI_CHANNEL		(4)
+#pragma message	"MIDI_CHANNEL not defined - defining as Channel 5"
+#define MIDI_CHANNEL		(0x04)
 #endif
 
 //

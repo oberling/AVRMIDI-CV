@@ -10,12 +10,14 @@ bool midibuffer_init(midibuffer_t* b, midimessage_handler h) {
 bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 	if(ringbuffer_empty(&(b->buffer)))
 		return false;
-	unsigned char byte;
+	unsigned char byte = 0x00;
 	// discard all sysex-message-bytes
 	do {
 		// check if we have a sysex- or clock-message here
 		// ignore sysex; dispatch clock;
-		ringbuffer_peek(&(b->buffer), &byte);
+		if(!ringbuffer_peek(&(b->buffer), &byte)) {
+			return false;
+		}
 		switch(byte) {
 			case SYSEX_BEGIN:
 				midibuffer_issysex = true;
@@ -35,6 +37,8 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 			break;
 		ringbuffer_get(&(b->buffer), &byte);
 	} while(!ringbuffer_empty(&(b->buffer)));
+	if(ringbuffer_empty(&(b->buffer)))
+		return false;
 
 	//
 	// midi-definitions from http://www.midi.org/techspecs/midimessages.php
