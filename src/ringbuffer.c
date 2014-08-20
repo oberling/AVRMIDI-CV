@@ -25,15 +25,31 @@ bool ringbuffer_peek(ringbuffer_t* b, unsigned char* out) {
 
 bool ringbuffer_getn_or_nothing(ringbuffer_t* b, unsigned char* out, uint8_t num_bytes) {
 	uint8_t i=0;
-	if(
-		(num_bytes > RINGBUFFER_SIZE) || // can't return more bytes than size of buffer
-		(b->pos_read == b->pos_write) || // won't return a byte if our buffer is empty
-		(
-			(b->pos_read < b->pos_write) &&  // otherwise we already had a buffer_overflow
-			(((b->pos_read+num_bytes) & RINGBUFFER_MASK) > b->pos_write)
-		) // not enough bytes in buffer
-	)
+	if(num_bytes > RINGBUFFER_SIZE) {
 		return false;
+	}
+	// empty buffer check
+	if(b->pos_read == b->pos_write) {
+		return false;
+	}
+	// enough bytes without pos_write overflown buffer
+	if(b->pos_read < b->pos_write) {
+		if(b->pos_read + num_bytes > b->pos_write) {
+			return false;
+		}
+	}
+	// b->pos_read > b->pos_write (pos_write has already once crossed the buffer border)
+	else {
+		uint8_t last_pos = b->pos_read+num_bytes;
+		// check whether b->pos_read also crosses the buffer border
+		if(last_pos != (last_pos & RINGBUFFER_MASK)) {
+			// then check if it now also would cross pos_write -> not enough in buffer
+			if((last_pos & RINGBUFFER_MASK) > b->pos_write) {
+				return false;
+			}
+		}
+	}
+
 	// we have enough bytes - return them
 	do {
 		*out = b->buffer[(b->pos_read+i)&RINGBUFFER_MASK];

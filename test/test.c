@@ -506,10 +506,43 @@ int main(int argc, char** argv) {
 		assert(it->note == b.byte[1]);
 		assert(it->velocity == b.byte[2]);
 		printf(" success\n");
+		printf("\tdeep note-on-off-checking");
+		init_notes();
+		init_variables();
+		i=0;
+		for(;i<14;i++) {
+			a.byte[2] = 0x77;
+			assert(midibuffer_put(&midi_buffer, a.byte[0]) == true);
+			assert(midibuffer_tick(&midi_buffer) == false);
+			assert(midibuffer_put(&midi_buffer, a.byte[1]) == true);
+			assert(midibuffer_tick(&midi_buffer) == false);
+			assert(midibuffer_put(&midi_buffer, a.byte[2]) == true);
+			assert(midibuffer_tick(&midi_buffer) == true);
+			a.byte[2] = 0x00;
+			assert(midibuffer_put(&midi_buffer, a.byte[0]) == true);
+			assert(midibuffer_tick(&midi_buffer) == false);
+			assert(midibuffer_put(&midi_buffer, a.byte[1]) == true);
+			assert(midibuffer_tick(&midi_buffer) == false);
+			assert(midibuffer_put(&midi_buffer, a.byte[2]) == true);
+			assert(midibuffer_tick(&midi_buffer) == true);
+		}
+		printf(" success\n");
 	}
 	printf("} success\n");
 	printf("testing polyphonic mode {");
 	{
+		init_variables();
+		init_notes();
+		insert_midibuffer_test(a);
+		insert_midibuffer_test(b);
+		insert_midibuffer_test(c);
+		insert_midibuffer_test(d);
+		insert_midibuffer_test(e);
+		midibuffer_tick(&midi_buffer);
+		midibuffer_tick(&midi_buffer);
+		midibuffer_tick(&midi_buffer);
+		midibuffer_tick(&midi_buffer);
+		midibuffer_tick(&midi_buffer);
 		printf("\n");
 		midinote_t* it;
 		uint8_t num_notes = 0;
