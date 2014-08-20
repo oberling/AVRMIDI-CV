@@ -258,7 +258,7 @@ void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
 	memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
-	memset(mode, 0, sizeof(playmode)*NUM_PLAY_MODES);
+	memset(mode, 0, sizeof(playmode_t)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
 	mode[UNISON_MODE].update_notes = update_notes_unison;
 }
