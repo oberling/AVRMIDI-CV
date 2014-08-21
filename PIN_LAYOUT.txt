@@ -1,0 +1,40 @@
+ATMEGA 8
+PB0		-	LDAC_PIN (DA8568)
+PB1		-	CLR_PIN (DA8568)
+PB2		-	SS
+PB3		-	MOSI
+PB4		-	MISO
+PB5		-	SCK
+PB6		-	XTAL	(16 MHz)
+PB7		-	XTAL	(16 MHz)
+
+PC0	ADC0	-		(GATE1)
+PC1	ADC1	-		(GATE2)
+PC2	ADC2	-		(GATE3)
+PC3	ADC3	-		(GATE4)
+PC4	ADC4	-		(POTI)
+PC5	ADC5	-		(POTI)
+PC6			-	RESET
+
+PD0		-	RXD		(MIDI-IN)
+PD1		-	TXD
+PD2		-			(TRIG1)
+PD3		-			(TRIG2)
+PD4		-			(TRIG3)
+PD5		-			(TRIG4)
+PD6		-			(CE_PIN)
+PD7		-			(PL_PIN)
+
+SHIFTREGISTER 74HC165
+VCC (16) - 5V
+GND ( 8) - GND
+D7  ( 6) - POLYPHONIC/UNISON SWITCH (BIT 0)
+... ( 5) ( 4) ( 3) (14) (13) (12)
+D0  (11) - NOT USED BY NOW (BIT 8)
+CE  (15) - PD6
+CP  ( 2) - PB5 (SCK)
+PL  ( 1) - PD7
+DS  (10) - PB3 (MOSI)
+Q7  ( 9) - PB4 (MISO)
+!Q7 ( 7) - N.C.
+

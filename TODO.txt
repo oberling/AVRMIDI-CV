@@ -1,0 +1,26 @@
+- add 12V from 5V and OpAmp-Circuits
+	- those 12V feed all the doubling OpAmps
+	- the doubling OpAmps are realized connecting one inlet to the output of the DAC and the other via an adjustable 10KOhm 25-turn resistor, Ground and a 5 KOhm resistor to the output of the OpAmp
+	- there are 4 KeyCV outputs needed from the DAC and 4 Velocity outputs - makes 8 DAC-Outputs
+
+- switchable GATE-/TRIGGER-Voltages via jumper and OpAmp
+
+IDEAS
+=====
+- would be nice:
+	- 7 segment display for midi channel
+	- button to cycle through midi channels (1 Pin) - hardware debouncing!
+	- 7 segment display for operating mode
+	- poti for portamento (1 Pin)
+
+- would be easy:
+	- power LED
+
+- other implementations:
+	- arpeggiator - not neccessary... will be done by the DAW (would also need MIDI-Clock and stuff)
+	- protamento - not neccessary... will be done by the synth (would be difficult to implement efficiently but is easy for the synth)
+	- variable midi-channel - might be considerable :)
+
+- Multiswitch for modes:
+	- 8 modes - 3 bit;
+
