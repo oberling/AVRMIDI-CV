@@ -21,8 +21,8 @@
 #define CLOCK_STOP			(0xFC)
 #define NOTE_OFF			((0x80)|(MIDI_CHANNEL))
 #define NOTE_ON				((0x90)|(MIDI_CHANNEL))
-#define NOTE_ON_NIBBLE		(0x08)
-#define NOTE_OFF_NIBBLE		(0x09)
+#define NOTE_ON_NIBBLE		(0x09)
+#define NOTE_OFF_NIBBLE		(0x08)
 
 typedef uint8_t note_t;
 typedef uint8_t vel_t;
