@@ -2,15 +2,17 @@
 #define __DAC8568C_H_
 #include <stdint.h>
 //DAC8568C & AD5668 Command definitions
-#define DAC_WRITE					(0)
-#define DAC_UPDATE					(1)
-#define DAC_WRITE_UPDATE_ALL		(2)
-#define DAC_WRITE_UPDATE_N			(3)
-#define DAC_POWER					(4)
-#define DAC_LOAD_CC_REG				(5)
-#define DAC_LOAD_LDAC_REG			(6)
-#define DAC_RESET					(7)
-#define DAC_SETUP_INTERNAL_REGISTER	(8)
+#define DAC_WRITE						(0)
+#define DAC_UPDATE						(1)
+#define DAC_WRITE_UPDATE_ALL			(2)
+#define DAC_WRITE_UPDATE_N				(3)
+#define DAC_POWER						(4)
+#define DAC_LOAD_CC_REG					(5)
+#define DAC_LOAD_LDAC_REG				(6)
+#define DAC_RESET						(7)
+#define DAC_SETUP_INTERNAL_REFERENCE	(8)
+#define DAC_INTERNAL_REFERENCE_ON		(1)
+#define DAC_INTERNAL_REFERENCE_OFF		(0)
 
 #ifndef DAC_PORT
 #pragma message "DAC_PORT not defined - defaulting to PORTB"
@@ -30,7 +32,7 @@
 #endif
 #ifndef DAC_CS_PIN
 #pragma message "DAC_CS_PIN not defined - defaulting to PB2"
-#define DAC_CS_PIN	PB2
+#define DAC_CS_PIN		PB2
 #endif
 
 /**

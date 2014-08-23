@@ -17,7 +17,7 @@ void dac8568c_init(void) {
 	DAC_PORT &= ~(1<<DAC_CLR_PIN);
 	_delay_us(10); // TODO: look up the really necessary delay here
 	DAC_PORT |= (1<<DAC_CLR_PIN);
-	dac8568c_write(DAC_SETUP_INTERNAL_REGISTER, 0, 1);
+	dac8568c_write(DAC_SETUP_INTERNAL_REFERENCE, 0, DAC_INTERNAL_REFERENCE_ON);
 }
 
 void dac8568c_write(uint8_t command, uint8_t address, uint32_t data) {
@@ -31,7 +31,7 @@ void dac8568c_write(uint8_t command, uint8_t address, uint32_t data) {
 				__dac8568c_output_bytes(b1, b2, b3, b4, DAC_TOGGLE_LDAC);
 				break;
 			}
-		case DAC_SETUP_INTERNAL_REGISTER:
+		case DAC_SETUP_INTERNAL_REFERENCE:
 			{
 				uint8_t b1 = 0b00001000; //padding at beginning of byte
 				uint8_t b2 = 0b00000000;
