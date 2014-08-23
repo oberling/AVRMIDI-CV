@@ -900,6 +900,26 @@ int main(int argc, char** argv) {
 		assert(out<=65536);
 	}
 	printf(" success\n");
-
+	printf("testing some hardcoded note ");
+	{
+		init_variables();
+		testnote_t z;
+		z.byte[0] = 0x94;
+		z.byte[1] = 0x3c;
+		z.byte[2] = 0x72;
+		insert_midibuffer_test(z);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		midinote_t* it;
+		uint8_t num_notes = 0;
+		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
+		assert(playing_notes[0].midinote.note == 0x00);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(must_update_dac == false);
+		assert(playing_notes[0].midinote.note == 0x3c);
+		assert(gate_port == 0x00);
+		update_dac();
+		assert(gate_port == 0x01);
+	}
+	printf(" success\n");
 	return 0;
 }
