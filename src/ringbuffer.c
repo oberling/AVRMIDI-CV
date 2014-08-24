@@ -8,7 +8,7 @@ bool ringbuffer_init(ringbuffer_t* b) {
 
 bool ringbuffer_get(ringbuffer_t* b, unsigned char* out) {
 	// false if buffer empty
-	if(b->pos_read == b->pos_write)
+	if(ringbuffer_empty(b))
 		return false;
 	*out = b->buffer[b->pos_read];
 	b->pos_read = (b->pos_read+1) & RINGBUFFER_MASK;
@@ -17,7 +17,7 @@ bool ringbuffer_get(ringbuffer_t* b, unsigned char* out) {
 
 bool ringbuffer_peek(ringbuffer_t* b, unsigned char* out) {
 	// false if buffer empty
-	if(b->pos_read == b->pos_write)
+	if(ringbuffer_empty(b))
 		return false;
 	*out = b->buffer[b->pos_read];
 	return true;
@@ -29,7 +29,7 @@ bool ringbuffer_getn_or_nothing(ringbuffer_t* b, unsigned char* out, uint8_t num
 		return false;
 	}
 	// empty buffer check
-	if(b->pos_read == b->pos_write) {
+	if(ringbuffer_empty(b)) {
 		return false;
 	}
 	// enough bytes without pos_write overflown buffer
