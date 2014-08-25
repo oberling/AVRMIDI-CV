@@ -8,8 +8,14 @@ bool midinote_stack_init(midinote_stack_t* s) {
 }
 
 bool midinote_stack_push(midinote_stack_t* s, midinote_t d) {
+	uint8_t i=0;
+	for(;i<s->position;i++) {
+		if(s->data[i].note == d.note) {
+			s->data[i] = d;
+			return true;
+		}
+	}
 	if(s->position>MIDINOTE_STACK_SIZE) {
-		uint8_t i=0;
 		for(;i<MIDINOTE_STACK_SIZE-1; i++) {
 			s->data[i] = s->data[i+1];
 		}

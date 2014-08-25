@@ -32,12 +32,13 @@ typedef struct {
 bool midinote_stack_init(midinote_stack_t* s);
 
 /**
- * \brief Function to push a midinote to the stack
+ * \brief Function to push or update a midinote to the stack
  * \description This function pushes a midinote on top of the
- * stack if there is any space left.
+ * stack if there is any space left. If the note already is on
+ * the stack it gets updated (e.g. velocity changed).
  * \param in s thie midinotestack
  * \param in d the midinote to push to the stack
- * \return whether or not the element has been pushed
+ * \return whether or not the element has been pushed/updated
  */
 bool midinote_stack_push(midinote_stack_t* s, midinote_t d);
 
