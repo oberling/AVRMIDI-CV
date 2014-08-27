@@ -3,10 +3,12 @@
 #include <stdbool.h>
 #include <util/delay.h>
 
+typedef union {
+	uint8_t b[4];
+	uint32_t command;
+} dac_command_t;
 
-#define DAC_TOGGLE_LDAC true
-
-void __dac8568c_output_bytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, bool ldacswitch);
+void __dac8568c_output_bytes(dac_command_t command, bool ldacswitch);
 
 void dac8568c_init(void) {
 	init_spi();
@@ -20,73 +22,62 @@ void dac8568c_init(void) {
 	dac8568c_write(DAC_SETUP_INTERNAL_REFERENCE, 0, DAC_INTERNAL_REFERENCE_ON);
 }
 
-void dac8568c_write(uint8_t command, uint8_t address, uint32_t data) {
+void dac8568c_write(uint8_t command, uint8_t address, uint16_t data) {
+	bool ldac_trigger = false;
+	dac_command_t transfer;
 	switch (command) {
 		case DAC_WRITE_UPDATE_N:
-			{
-				uint8_t b1 = 0b00000000|command; //padding at beginning of uint8_t 1
-				uint8_t b2 = address << 4 | data >> 12; //4 address bits and 4 MSBs of data
-				uint8_t b3 = (data << 4) >> 8; // middle 8 bits of data
-				uint8_t b4 = (data << 12) >> 8 |0b00001111;
-				__dac8568c_output_bytes(b1, b2, b3, b4, DAC_TOGGLE_LDAC);
-				break;
-			}
+			// shifting in our message bit per bit
+			transfer.command = command;
+			// make space for the address and put it in
+			transfer.command = transfer.command << 4;
+			transfer.command |= (address & 0x0f);
+			// make some space for our data and put it in
+			transfer.command = transfer.command << 16;
+			transfer.command |= (data);
+			// make some space for the function bits and put them in
+			transfer.command = transfer.command << 4;
+			transfer.command |= 0x0f;
+			// now every bit is right in place
+			ldac_trigger = true;
+			break;
 		case DAC_SETUP_INTERNAL_REFERENCE:
-			{
-				uint8_t b1 = 0b00001000; //padding at beginning of byte
-				uint8_t b2 = 0b00000000;
-				uint8_t b3 = 0b00000000;
-				uint8_t b4 = 0b00000000|data;
-				__dac8568c_output_bytes(b1, b2, b3, b4, false);
-				break;
-			}
+			// we could limit data with &0x01 but lets save some valuable flash-bytes here
+			transfer.command = 0x08000000 | (data);
+			break;
 		case DAC_RESET:
-			{
-				uint8_t b1 = 0b00000111; //padding at beginning of byte
-				uint8_t b2 = 0b00000000;
-				uint8_t b3 = 0b00000000;
-				uint8_t b4 = 0b00000000|data;
-				__dac8568c_output_bytes(b1, b2, b3, b4, false);
-				break;
-			}
+			// we could limit data with &0x03 but lets save some valuable flash-bytes here
+			transfer.command = 0x07000000 | (data);
+			break;
 		case DAC_POWER:
-			{
-				uint8_t b1 = 0b00000100; //padding at beginning of byte
-				uint8_t b2 = 0b00000000;
-				uint8_t b3 = 0b00000000;
-				uint8_t b4 = 0b11111111;
-				__dac8568c_output_bytes(b1, b2, b3, b4, false);
-				break;
-			}
+			transfer.command = 0x040000ff;
+			break;
+		default:
+			return;
 	}
+	__dac8568c_output_bytes(transfer, ldac_trigger);
 }
 
 void dac8568c_enable_internal_ref(void) {
-	// 08 00 00 01:
-	uint8_t b1 = 0b00001000;
-	uint8_t b2 = 0b00000000;
-	uint8_t b3 = 0b00000000;
-	uint8_t b4 = 0b00000001;
-	__dac8568c_output_bytes(b1, b2, b3, b4, false);
+	dac_command_t command;
+	command.command = 0x08000001;
+	__dac8568c_output_bytes(command, false);
 }
 
 void dac8568c_disable_internal_ref(void) {
-	// 08 00 00 00:
-	uint8_t b1 = 0b00001000;
-	uint8_t b2 = 0b00000000;
-	uint8_t b3 = 0b00000000;
-	uint8_t b4 = 0b00000000;
-	__dac8568c_output_bytes(b1, b2, b3, b4, false);
+	dac_command_t command;
+	command.command = 0x08000000;
+	__dac8568c_output_bytes(command, false);
 }
 
-void __dac8568c_output_bytes(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, bool ldacswitch){
+void __dac8568c_output_bytes(dac_command_t command, bool ldacswitch){
 	DAC_PORT &= ~(1<<DAC_CS_PIN);
 	// wait till that pin is really set
 	__asm("nop\n\t");
-	spi_transfer(b1);
-	spi_transfer(b2);
-	spi_transfer(b3);
-	spi_transfer(b4);
+	spi_transfer(command.b[3]);
+	spi_transfer(command.b[2]);
+	spi_transfer(command.b[1]);
+	spi_transfer(command.b[0]);
 	if(ldacswitch) {
 		DAC_PORT &= ~(1<<DAC_LDAC_PIN);
 		_delay_us(1);

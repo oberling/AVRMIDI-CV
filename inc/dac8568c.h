@@ -49,7 +49,7 @@ void dac8568c_init(void);
  * DAC_WRITE_UPDATE_N command. Data has to be according to the datasheet
  * and can be left blank for any DAC_POWER operations.
  */
-void dac8568c_write(uint8_t command, uint8_t address, uint32_t data);
+void dac8568c_write(uint8_t command, uint8_t address, uint16_t data);
 
 /**
  * Function to enable the internal reference
