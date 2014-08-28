@@ -1,7 +1,6 @@
 #include "dac8568c.h"
 #include "spi.h"
 #include <stdbool.h>
-#include <util/delay.h>
 
 typedef union {
 	uint8_t b[4];
@@ -17,7 +16,8 @@ void dac8568c_init(void) {
 	DAC_PORT &= ~(1<<DAC_CS_PIN);
 	DAC_PORT |= (1<<DAC_LDAC_PIN);
 	DAC_PORT &= ~(1<<DAC_CLR_PIN);
-	_delay_us(10); // TODO: look up the really necessary delay here
+	__asm("nop\n\t");
+	__asm("nop\n\t");
 	DAC_PORT |= (1<<DAC_CLR_PIN);
 	dac8568c_write(DAC_SETUP_INTERNAL_REFERENCE, 0, DAC_INTERNAL_REFERENCE_ON);
 }
@@ -80,14 +80,11 @@ void __dac8568c_output_bytes(dac_command_t command, bool ldacswitch){
 	spi_transfer(command.b[0]);
 	if(ldacswitch) {
 		DAC_PORT &= ~(1<<DAC_LDAC_PIN);
-		_delay_us(1);
-//		__asm("nop\n\t");
+		__asm("nop\n\t");
+		__asm("nop\n\t");
 		DAC_PORT |= (1<<DAC_LDAC_PIN);
-		_delay_us(1);
-//		__asm("nop\n\t");
 	}
-	_delay_us(1);
-//	__asm("nop\n\t");
+	__asm("nop\n\t");
 	DAC_PORT |= (1<<DAC_CS_PIN);
 }
 

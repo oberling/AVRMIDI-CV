@@ -13,7 +13,6 @@
 #include <string.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/delay.h>
 
 #define GATE_PORT	PORTC
 #define GATE_DDR	DDRC
@@ -136,7 +135,6 @@ void process_user_input(void);
 void process_analog_in(void);
 void init_variables(void);
 void init_io(void);
-void long_delay(uint16_t ms);
 void update_notes(void);
 
 bool midi_handler_function(midimessage_t* m) {
@@ -275,10 +273,6 @@ void init_io(void) {
 	sr74hc165_init(NUM_SHIFTIN_REG);
 	init_analogin();
 	uart_init();
-}
-
-void long_delay(uint16_t ms) {
-	for(;ms>0;ms--) _delay_ms(1);
 }
 
 ISR(USART_RXC_vect) {

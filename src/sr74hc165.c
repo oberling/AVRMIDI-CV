@@ -1,5 +1,4 @@
 #include "sr74hc165.h"
-#include <util/delay.h>
 
 void sr74hc165_init(uint8_t num_modules) {
 	init_spi();
@@ -12,7 +11,8 @@ void sr74hc165_read(unsigned char* output_buffer, uint8_t num_modules) {
 	// load inputs to shift register
 	SPI_PORT |= (1<<SPI_SCK);
 	SR_PL_CE_PORT &= ~(1<<SR_PL_PIN);
-	_delay_us(1);
+	__asm("nop\n\t");
+	__asm("nop\n\t"); // ... just to make shure ...
 	SR_PL_CE_PORT |= (1<<SR_PL_PIN);
 	// chip select
 	SR_PL_CE_PORT &= ~(1<<SR_CE_PIN);
