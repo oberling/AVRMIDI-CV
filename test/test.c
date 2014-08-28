@@ -921,5 +921,23 @@ int main(int argc, char** argv) {
 		assert(gate_port == 0x01);
 	}
 	printf(" success\n");
+	printf("testing velocity 0 instead of NOTE_OFF");
+	{
+		init_variables();
+		testnote_t z;
+		z.byte[0] = 0x94;
+		z.byte[1] = 0x3f;
+		z.byte[2] = 0x77;
+		insert_midibuffer_test(z);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].midinote.note == 0x3f);
+		z.byte[2] = 0x00;
+		insert_midibuffer_test(z);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].midinote.note == 0x00);
+	}
+	printf(" success\n");
 	return 0;
 }
