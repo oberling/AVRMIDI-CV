@@ -30,9 +30,9 @@
 
 #define RETRIGGER_POTI_CHANNEL	(4)
 
-#define NUM_PLAY_MODES 2
-#define POLYPHONIC_MODE 0
-#define UNISON_MODE 1
+#define NUM_PLAY_MODES	(2)
+#define POLYPHONIC_MODE	(0)
+#define UNISON_MODE		(1)
 
 // User Input defines
 #define ANALOG_READ_COUNTER (2)
@@ -344,6 +344,10 @@ void timer1_overflow_function(void) {
 	if(shift_in_trigger_counter-- == 0) {
 		shift_in_trigger_counter = SHIFTIN_TRIGGER;
 		get_shiftin = true;
+	}
+	if(analog_in_counter-- == 0) {
+		analog_in_counter = ANALOG_READ_COUNTER;
+		get_analogin = true;
 	}
 }
 
