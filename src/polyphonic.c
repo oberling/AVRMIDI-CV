@@ -32,11 +32,12 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* play
 		if(!found)
 			memset(playing_notes+i, 0, sizeof(playingnote_t));
 	}
-	// add new playing notes - leave alone the already playing notes
+	// add new playing notes - update velocity of already playing notes
 	for(i=0;i<actual_played_notes; i++) {
 		found = false;
 		for(j=0;j<NUM_PLAY_NOTES; j++) {
 			if((it+i)->note==(playing_notes+j)->midinote.note) {
+				(playing_notes+j)->midinote.velocity = (it+i)->velocity;
 				found = true;
 				break;
 			}
