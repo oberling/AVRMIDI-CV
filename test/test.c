@@ -188,9 +188,9 @@ void get_voltage(uint8_t val, uint32_t* voltage_out) {
 void update_dac(void) {
 	uint8_t i = 0;
 	for(; i<NUM_PLAY_NOTES; i++) {
-		unsigned int note = playing_notes[i].midinote.note;
-		unsigned int velocity = playing_notes[i].midinote.velocity;
-		uint32_t voltage = 0;
+		note_t note = playing_notes[i].midinote.note;
+		vel_t velocity = playing_notes[i].midinote.velocity;
+		uint32_t voltage;
 		get_voltage(note, &voltage);
 		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
 		// Send velocity
