@@ -313,6 +313,7 @@ ISR(TIMER0_OVF_vect) {
 }
 
 int main(int argc, char** argv) {
+	cli();
 	uint8_t i = 0;
 	init_variables();
 	init_io();
