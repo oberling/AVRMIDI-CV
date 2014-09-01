@@ -322,7 +322,7 @@ int main(int argc, char** argv) {
 		// handle midibuffer - update playing_notes accordingly
 		if(midibuffer_tick(&midi_buffer)) {
 			mode[playmode].update_notes(&note_stack, playing_notes);
-			update_dac();
+			must_update_dac = true;
 		}
 
 		// handle newly triggered notes
