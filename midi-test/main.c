@@ -12,6 +12,7 @@ void initVariables(void);
 void listAllDevices(void);
 void listOutputDevices(void);
 int getMappedOutputDeviceID(int);
+void testit(void);
 void testNote(uint8_t, uint8_t);
 void testOneNote(void);
 void printTestMenu(void);
@@ -54,6 +55,10 @@ int getMappedOutputDeviceID(int selectedDevice) {
 	return i;
 }
 
+void testit(void) {
+	testOneNote();
+}
+
 void testNote(uint8_t note, uint8_t velocity) {
 	PmEvent event;
 	event.timestamp = 0;
@@ -90,6 +95,9 @@ void printTestMenu(void) {
 				break;
 			case 1:
 				testOneNote();
+				break;
+			case 9:
+				testit();
 				break;
 			default:
 				break;
