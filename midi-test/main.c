@@ -15,6 +15,8 @@ int getMappedOutputDeviceID(int);
 void testit(void);
 void testNote(uint8_t, uint8_t);
 void testOneNote(void);
+void testOctaves(void);
+void testPolyphonic(void);
 void printTestMenu(void);
 
 void initVariables(void) {
@@ -57,6 +59,7 @@ int getMappedOutputDeviceID(int selectedDevice) {
 
 void testit(void) {
 	testOneNote();
+	testPolyphonic();
 }
 
 void testNote(uint8_t note, uint8_t velocity) {
@@ -75,6 +78,26 @@ void testOneNote(void) {
 	testNote(120, 77);
 }
 
+void testPolyphonic(void) {
+	PmEvent event[5];
+	uint8_t i=0;
+	for(;i<5;i++) {
+		event[i].timestamp = 0;
+		event[i].message = Pm_Message(0x94, (0x30+(i*5)), (0x20+(i*10)));
+		Pm_Write(midiOutputStream, event+i, 1);
+	}
+	printf("check if it playes 4 notes (enter to continue)");
+	fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
+	for(i=0; i<5; i++) {
+		event[i].message = Pm_Message(0x94, (0x30+(i*5)), (0x00));
+		printf("one note less (enter to continue)");
+		fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
+		Pm_Write(midiOutputStream, event+i, 1);
+	}
+	printf("now all notes should be off\n");
+	fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
+}
+
 void printTestMenu(void) {
 	char line[100];
 	int answer = -1;
@@ -82,6 +105,7 @@ void printTestMenu(void) {
 		printf("\nMIDI-CV-TEST Main Menu\n");
 		printf(" [0] Quit\n");
 		printf(" [1] Test simple Note\n");
+		printf(" [2] Test simple Polyphony\n");
 		printf(" [9] Test all\n");
 		printf("\nplease enter a number from the above ones: ");
 		fgets(line, sizeof(line), stdin);
@@ -95,6 +119,9 @@ void printTestMenu(void) {
 				break;
 			case 1:
 				testOneNote();
+				break;
+			case 2:
+				testPolyphonic();
 				break;
 			case 9:
 				testit();
