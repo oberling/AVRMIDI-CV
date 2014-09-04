@@ -943,5 +943,29 @@ int main(int argc, char** argv) {
 		assert(playing_notes[0].midinote.note == 0x00);
 	}
 	printf(" success\n");
+	printf("testing multiple same NOTE_ON and single NOTE_OFF");
+	{
+		init_variables();
+		init_notes();
+		playmode = POLYPHONIC_MODE;
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].midinote.note == a.byte[1]);
+		uint8_t i=1;
+		for(;i<NUM_PLAY_NOTES; i++) {
+			assert(playing_notes[i].midinote.note == 0x00);
+		}
+		a.byte[0] = NOTE_OFF;
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		for(i=0; i<NUM_PLAY_NOTES; i++) {
+			assert(playing_notes[i].midinote.note == 0x00);
+		}
+	}
+	printf(" success\n");
 	return 0;
 }
