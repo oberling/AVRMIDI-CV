@@ -16,6 +16,7 @@ void testit(void);
 void testNote(uint8_t, uint8_t);
 void testOneNote(void);
 void testOctaves(void);
+void testHangingNote(void);
 void testPolyphonic(void);
 void printTestMenu(void);
 
@@ -78,6 +79,20 @@ void testOneNote(void) {
 	testNote(120, 77);
 }
 
+void testHangingNote(void) {
+	PmEvent event;
+	event.timestamp = 0;
+	event.message = Pm_Message(0x94, 120, 77);
+	Pm_Write(midiOutputStream, &event, 1);
+	printf("check if it playes a note (enter to continue)");
+	fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
+	printf("now have same note again without note-off in between\n");
+	Pm_Write(midiOutputStream, &event, 1);
+	event.message = Pm_Message(0x94, 120, 0x00);
+	Pm_Write(midiOutputStream, &event, 1);
+	printf("now the note should be off\n");
+}
+
 void testPolyphonic(void) {
 	PmEvent event[5];
 	uint8_t i=0;
@@ -106,6 +121,7 @@ void printTestMenu(void) {
 		printf(" [0] Quit\n");
 		printf(" [1] Test simple Note\n");
 		printf(" [2] Test simple Polyphony\n");
+		printf(" [3] Test hanging Note\n");
 		printf(" [9] Test all\n");
 		printf("\nplease enter a number from the above ones: ");
 		fgets(line, sizeof(line), stdin);
@@ -122,6 +138,9 @@ void printTestMenu(void) {
 				break;
 			case 2:
 				testPolyphonic();
+				break;
+			case 3:
+				testHangingNote();
 				break;
 			case 9:
 				testit();
