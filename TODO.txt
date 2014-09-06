@@ -2,6 +2,7 @@
 	- those 12V feed all the doubling OpAmps
 	- the doubling OpAmps are realized connecting one inlet to the output of the DAC and the other via an adjustable 10KOhm 25-turn resistor, Ground and a 5 KOhm resistor to the output of the OpAmp
 	- there are 4 KeyCV outputs needed from the DAC and 4 Velocity outputs - makes 8 DAC-Outputs
+	- check whether 15V works better
 
 - switchable GATE-/TRIGGER-Voltages via jumper and OpAmp
 

@@ -22,10 +22,20 @@ I have however a little testing program to test whether or not the data structur
 Thats why I can safly say that the code compiles and works according to those tests.
 I am now moving slowly from software- to hardware-tests building the circuit part-by-part and testing each module.
 
+Tested in Hardware so far:
+* MIDI-IN
+* DAC output voltages
+
+Test not completed for:
+* shift register input for program modes
+* GATE+Trigger via transistor
+* doubling OpAmp-circuit
+
 TODO
 ====
 * design a circuit
- * especially design the OpAmp-circuit to double the 5V-voltages for key and velocity
+ * check if doubling voltage circuit works better with +-15V
+ * some simple transistors for GATE and trigger outputs
  * last not least design a PCB layout
 * test on device
 

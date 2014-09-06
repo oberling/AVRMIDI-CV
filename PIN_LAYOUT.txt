@@ -38,3 +38,46 @@ DS  (10) - PB3 (MOSI)
 Q7  ( 9) - PB4 (MISO)
 !Q7 ( 7) - N.C.
 
+AD5668
+LDAC	(1)		-	PB0
+SYNC	(2)		-	PB2 (SS)
+VDD		(3)		-	5V
+VOUTA	(4)		-	KV1
+VOUTC	(5)		-	KV3
+VOUTE	(6)		-	VV1
+VOUTG	(7)		-	VV3
+VREF	(8)		-	N.C. (critical!)
+CLR		(9)		-	PB1
+VOUTH	(10)	-	VV4
+VOUTF	(11)	-	VV2
+VOUTD	(12)	-	KV4
+VOUTB	(13)	-	KV2
+GND		(14)	-	GND
+DIN		(15)	-	PB3 (MOSI)
+SCK		(16)	-	PB5 (SCK)
+
+murata NMV0512DC
+V+IN	(1)	5V
+V-IN	(2)	GND
+N.C.	(3)	no Pin
+N.C.	(4)	no Pin
+VOUT-	(5)	-12V
+0V		(6)	0V	->	GND
+VOUT+	(7)	+12V
+
+TL074D (same again for Velocity -> every KV is VV and every KDB is VOUT)
+1OUT	KV1		10kOhm-Trimmer->((1IN-) AND (4.7kOhm->GND))
+1IN-	see 1OUT
+1IN+	KBDV1
+2OUT	KV2		10kOhm-Trimmer->((2IN-) AND (4.7kOhm->GND))
+2IN-	see 2OUT
+2IN+	KBDV2
+3OUT	KV3		10kOhm-Trimmer->((3IN-) AND (4.7kOhm->GND))
+3IN-	see 3OUT
+3IN+	KBDV3
+4OUT	KV4		10kOhm-Trimmer->((4IN-) AND (4.7kOhm->GND))
+4IN-	see 4OUT
+4IN+	KBDV4
+VCC+	+12V
+VCC-	-12V
+
