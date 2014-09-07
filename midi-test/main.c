@@ -16,6 +16,7 @@ void testit(void);
 void testNote(uint8_t, uint8_t);
 void testOneNote(void);
 void testOctaves(void);
+void testSingleNotes(void);
 void testHangingNote(void);
 void testPolyphonic(void);
 void printTestMenu(void);
@@ -79,6 +80,24 @@ void testOneNote(void) {
 	testNote(120, 77);
 }
 
+void testOctaves(void) {
+	printf("testing octaves\n");
+	uint8_t i=0;
+	for(;i<121; i+=12) {
+		testNote(i, 120);
+	}
+	printf("finished testing octaves\n");
+}
+
+void testSingleNotes(void) {
+	printf("testing simple notes\n");
+	uint8_t i=0;
+	for(; i<121;i++) {
+		testNote(i, 120);
+	}
+	printf("finished testing simple notes\n");
+}
+
 void testHangingNote(void) {
 	PmEvent event;
 	event.timestamp = 0;
@@ -122,6 +141,8 @@ void printTestMenu(void) {
 		printf(" [1] Test simple Note\n");
 		printf(" [2] Test simple Polyphony\n");
 		printf(" [3] Test hanging Note\n");
+		printf(" [4] Test octaves\n");
+		printf(" [5] Test all notes\n");
 		printf(" [9] Test all\n");
 		printf("\nplease enter a number from the above ones: ");
 		fgets(line, sizeof(line), stdin);
@@ -141,6 +162,12 @@ void printTestMenu(void) {
 				break;
 			case 3:
 				testHangingNote();
+				break;
+			case 4:
+				testOctaves();
+				break;
+			case 5:
+				testSingleNotes();
 				break;
 			case 9:
 				testit();
