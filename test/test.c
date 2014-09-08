@@ -101,6 +101,8 @@ uint8_t midiclock_trigger_mode = 0;
 uint8_t midiclock_counter = 0;
 uint8_t midiclock_trigger_limit = 0;
 
+uint8_t midi_channel = 4;
+
 #define RETRIGGER			(0x01)
 #define TRIGGER_CLOCK		(0x02)
 
@@ -144,17 +146,20 @@ void handle_trigger(void);
 
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
-	switch(m->byte[0]) {
-		case NOTE_ON:
-			mnote.note = m->byte[1];
-			mnote.velocity = m->byte[2];
-			if(mnote.velocity != 0x00) {
-				midinote_stack_push(&note_stack, mnote);
-				break;
-			}
-		case NOTE_OFF:
+	if(m->byte[0] == NOTE_ON(midi_channel)) {
+		mnote.note = m->byte[1];
+		mnote.velocity = m->byte[2];
+		if(mnote.velocity != 0x00) {
+			midinote_stack_push(&note_stack, mnote);
+		} else {
 			midinote_stack_remove(&note_stack, m->byte[1]);
-			break;
+		}
+		return true;
+	} else if (m->byte[0] == NOTE_OFF(midi_channel)) {
+		midinote_stack_remove(&note_stack, m->byte[1]);
+		return true;
+	}
+	switch(m->byte[0]) {
 		case CLOCK_SIGNAL:
 			midiclock_counter++;
 			update_clock = true;
@@ -268,28 +273,28 @@ void init_io(void) {
 }
 
 void init_notes(void) {
-	a.byte[0] = NOTE_ON;
+	a.byte[0] = NOTE_ON(midi_channel);
 	a.byte[1] = 0xff;
 	a.byte[2] = 0xdd;
-	b.byte[0] = NOTE_ON;
+	b.byte[0] = NOTE_ON(midi_channel);
 	b.byte[1] = 0xee;
 	b.byte[2] = 0xcc;
-	c.byte[0] = NOTE_ON;
+	c.byte[0] = NOTE_ON(midi_channel);
 	c.byte[1] = 0xbb;
 	c.byte[2] = 0xaa;
-	d.byte[0] = NOTE_ON;
+	d.byte[0] = NOTE_ON(midi_channel);
 	d.byte[1] = 0x99;
 	d.byte[2] = 0x88;
-	e.byte[0] = NOTE_ON;
+	e.byte[0] = NOTE_ON(midi_channel);
 	e.byte[1] = 0x77;
 	e.byte[2] = 0x66;
 }
 
 void prepare_four_notes_on_stack(void) {
-	a.byte[0] = NOTE_ON;
-	b.byte[0] = NOTE_ON;
-	c.byte[0] = NOTE_ON;
-	d.byte[0] = NOTE_ON;
+	a.byte[0] = NOTE_ON(midi_channel);
+	b.byte[0] = NOTE_ON(midi_channel);
+	c.byte[0] = NOTE_ON(midi_channel);
+	d.byte[0] = NOTE_ON(midi_channel);
 	insert_midibuffer_test(a);
 	insert_midibuffer_test(b);
 	insert_midibuffer_test(c);
@@ -448,7 +453,7 @@ int main(int argc, char** argv) {
 	printf(" success\n");
 	printf("testing NOTE_OFF-Handling");
 	{
-		a.byte[0] = NOTE_OFF;
+		a.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(a);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		mode[playmode].update_notes(&note_stack, playing_notes);
@@ -458,7 +463,7 @@ int main(int argc, char** argv) {
 	printf("testing multiple notes {");
 	{
 		printf("\n");
-		a.byte[0] = NOTE_ON;
+		a.byte[0] = NOTE_ON(midi_channel);
 		printf("\tinserting some notes... ");
 		uint8_t pos_read_test = midi_buffer.buffer.pos_read;
 		insert_midibuffer_test(a);
@@ -561,7 +566,7 @@ int main(int argc, char** argv) {
 		}
 		printf(" success\n");
 		printf("\tremoving one note from playing notes");
-		b.byte[0] = NOTE_OFF;
+		b.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(b);
 		midibuffer_tick(&midi_buffer);
 		num_notes = 0;
@@ -583,7 +588,7 @@ int main(int argc, char** argv) {
 		}
 		printf(" success\n");
 		printf("\tremoving another note and test again");
-		d.byte[0] = NOTE_OFF;
+		d.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(d);
 		midibuffer_tick(&midi_buffer);
 		num_notes = 0;
@@ -598,7 +603,7 @@ int main(int argc, char** argv) {
 		assert(playing_notes[3].midinote.note == e.byte[1]);
 		printf(" success\n");
 		printf("\tinserting a new note");
-		b.byte[0] = NOTE_ON;
+		b.byte[0] = NOTE_ON(midi_channel);
 		insert_midibuffer_test(b);
 		midibuffer_tick(&midi_buffer);
 		num_notes = 0;
@@ -620,11 +625,11 @@ int main(int argc, char** argv) {
 		printf("\tinitializing everything");
 		init_variables();
 		playmode = UNISON_MODE;
-		a.byte[0] = NOTE_ON;
-		b.byte[0] = NOTE_ON;
-		c.byte[0] = NOTE_ON;
-		d.byte[0] = NOTE_ON;
-		e.byte[0] = NOTE_ON;
+		a.byte[0] = NOTE_ON(midi_channel);
+		b.byte[0] = NOTE_ON(midi_channel);
+		c.byte[0] = NOTE_ON(midi_channel);
+		d.byte[0] = NOTE_ON(midi_channel);
+		e.byte[0] = NOTE_ON(midi_channel);
 		uint8_t pos_read_test = midi_buffer.buffer.pos_read;
 		insert_midibuffer_test(a);
 		assert(midi_buffer.buffer.pos_read == pos_read_test);
@@ -653,7 +658,7 @@ int main(int argc, char** argv) {
 		assert(playing_notes[3].midinote.note == e.byte[1]);
 		printf(" success\n");
 		printf("\ttrying to remove one note");
-		d.byte[0] = NOTE_OFF;
+		d.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(d);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		num_notes = 0;
@@ -661,7 +666,7 @@ int main(int argc, char** argv) {
 		assert(it->note == c.byte[1]);
 		printf(" success\n");
 		printf("\tremoving playing note");
-		e.byte[0] = NOTE_OFF;
+		e.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(e);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
@@ -678,9 +683,9 @@ int main(int argc, char** argv) {
 	printf("} success\n");
 	printf("testing empty buffer and stack again after some notes");
 	{
-		a.byte[0] = NOTE_OFF;
-		b.byte[0] = NOTE_OFF;
-		c.byte[0] = NOTE_OFF;
+		a.byte[0] = NOTE_OFF(midi_channel);
+		b.byte[0] = NOTE_OFF(midi_channel);
+		c.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(a);
 		insert_midibuffer_test(b);
 		insert_midibuffer_test(c);
@@ -814,7 +819,7 @@ int main(int argc, char** argv) {
 		assert(ISSET(playing_notes[0].flags, TRIGGER_FLAG) == false);
 		timer1_overflow_function();
 		timer1_overflow_function();
-		c.byte[0] = NOTE_OFF;
+		c.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(c);
 		midibuffer_tick(&midi_buffer);
 		assert(playing_notes[2].trigger_counter == TRIGGER_COUNTER_INIT-5);
@@ -958,7 +963,7 @@ int main(int argc, char** argv) {
 		for(;i<NUM_PLAY_NOTES; i++) {
 			assert(playing_notes[i].midinote.note == 0x00);
 		}
-		a.byte[0] = NOTE_OFF;
+		a.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(a);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		mode[playmode].update_notes(&note_stack, playing_notes);

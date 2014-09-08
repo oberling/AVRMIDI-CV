@@ -122,6 +122,8 @@ uint8_t midiclock_trigger_mode = 0;
 uint8_t midiclock_counter = 0;
 uint8_t midiclock_trigger_limit = 0;
 
+uint8_t midi_channel = 4;
+
 #define RETRIGGER			(0x01)
 #define TRIGGER_CLOCK		(0x02)
 
@@ -139,17 +141,20 @@ void update_notes(void);
 
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
-	switch(m->byte[0]) {
-		case NOTE_ON:
-			mnote.note = m->byte[1];
-			mnote.velocity = m->byte[2];
-			if(mnote.velocity != 0x00) {
-				midinote_stack_push(&note_stack, mnote);
-				break;
-			}
-		case NOTE_OFF:
+	if(m->byte[0] == NOTE_ON(midi_channel)) {
+		mnote.note = m->byte[1];
+		mnote.velocity = m->byte[2];
+		if(mnote.velocity != 0x00) {
+			midinote_stack_push(&note_stack, mnote);
+		} else {
 			midinote_stack_remove(&note_stack, m->byte[1]);
-			break;
+		}
+		return true;
+	} else if (m->byte[0] == NOTE_OFF(midi_channel)) {
+		midinote_stack_remove(&note_stack, m->byte[1]);
+		return true;
+	}
+	switch(m->byte[0]) {
 		case CLOCK_SIGNAL:
 			midiclock_counter++;
 			update_clock = true;

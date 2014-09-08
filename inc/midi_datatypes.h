@@ -2,11 +2,6 @@
 #define _MIDI_DATATYPES_H_
 #include <stdint.h>
 
-#ifndef MIDI_CHANNEL
-#pragma message	"MIDI_CHANNEL not defined - defining as Channel 5"
-#define MIDI_CHANNEL		(0x04)
-#endif
-
 //
 // midi-definitions from http://www.midi.org/techspecs/midimessages.php
 //
@@ -19,8 +14,8 @@
 #define CLOCK_START			(0xFA)
 #define CLOCK_CONTINUE		(0xFB)
 #define CLOCK_STOP			(0xFC)
-#define NOTE_OFF			((0x80)|(MIDI_CHANNEL))
-#define NOTE_ON				((0x90)|(MIDI_CHANNEL))
+#define NOTE_OFF(x)			((0x80)|(x))
+#define NOTE_ON(x)			((0x90)|(x))
 #define NOTE_ON_NIBBLE		(0x09)
 #define NOTE_OFF_NIBBLE		(0x08)
 
