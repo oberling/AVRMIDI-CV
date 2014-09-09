@@ -64,13 +64,6 @@
  * playing (but maybe on another channel...)
  */
 
-// dunno where these numbers come from
-//unsigned int voltage1 = 13400;
-//unsigned int voltage2 = 26500;
-//unsigned int voltage3 = 39550;
-//unsigned int voltage4 = 52625;
-//unsigned long voltage5 = 65735;
-
 // those voltages created for the values by the DAC
 // will be ~doubled by a OpAmp
 // (not exactly doubled because it's 127 at 5V but the
