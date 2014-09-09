@@ -38,17 +38,30 @@
 #define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
 #define NUM_SHIFTIN_REG		(1)
+
+/*
+ 00000000
+ \\\\\\\\_TRIGGER_CLOCK_BIT0 \
+  \\\\\\\_TRIGGER_CLOCK_BIT1  - trigger frequency (8 modes)
+   \\\\\\_TRIGGER_CLOCK_BIT2 /
+    \\\\\_RETRIGGER_INPUT_BIT - retrigger enable/disable
+     \\\\_TRIGGER_ON_CLOCK_BIT - retrigger synced to midi-clock
+      \\\_POLY_UNI_BIT - polyphonic unison mode
+       \\_reserved
+        \_reserved
+*/
+
 // bits in the bytes to represent certain modes
-#define POLY_UNI_MODE_BIT		(0x01)
-// if set we will retrigger
-#define RETRIGGER_INPUT_BIT		(0x02)
 // have us 8 different clock trigger modes possible
-#define TRIGGER_CLOCK_BIT0		(0x04)
-#define TRIGGER_CLOCK_BIT1		(0x08)
-#define TRIGGER_CLOCK_BIT2		(0x10)
-#define TRIGGER_BIT_MASK		(0x0F)
+#define TRIGGER_CLOCK_BIT0		(0x01)
+#define TRIGGER_CLOCK_BIT1		(0x02)
+#define TRIGGER_CLOCK_BIT2		(0x04)
+#define TRIGGER_BIT_MASK		(0x03)
+// if set we will retrigger
+#define RETRIGGER_INPUT_BIT		(0x08)
 // if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
-#define TRIGGER_ON_CLOCK_BIT	(0x20)
+#define TRIGGER_ON_CLOCK_BIT	(0x10)
+#define POLY_UNI_MODE_BIT		(0x20)
 
 // those voltages created for the values by the DAC
 // will be ~doubled by a OpAmp
@@ -237,7 +250,7 @@ void process_user_input(void) {
 	} else {
 		UNSET(program_options, TRIGGER_CLOCK);
 	}
-	midiclock_trigger_mode = ((input[0]>>TRIGGER_CLOCK_BIT0) & TRIGGER_BIT_MASK);
+	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK);
 }
 
 void process_analog_in(void) {
