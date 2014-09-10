@@ -39,7 +39,7 @@
 // User Input defines
 #define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
-#define NUM_SHIFTIN_REG		(1)
+#define NUM_SHIFTIN_REG		(2)
 
 /*
  00000000
@@ -64,6 +64,20 @@
 // if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
 #define TRIGGER_ON_CLOCK_BIT	(0x10)
 #define POLY_UNI_MODE_BIT		(0x20)
+
+// second shift-register
+/*
+ 00000000
+ \\\\\\\\_MIDI_CHANNEL_BIT0 \
+  \\\\\\\_MIDI_CHANNEL_BIT1  \_MIDI_CHANNEL
+   \\\\\\_MIDI_CHANNEL_BIT2  /
+    \\\\\_MIDI_CHANNEL_BIT3 /
+     \\\\_reserved
+      \\\_reserved
+       \\_reserved
+        \_reserved
+*/
+#define MIDI_CHANNEL_MASK		(0x0f)
 
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
@@ -240,6 +254,7 @@ void process_user_input(void) {
 		UNSET(program_options, TRIGGER_CLOCK);
 	}
 	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK);
+	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
 }
 
 void process_analog_in(void) {
