@@ -37,7 +37,7 @@
 // User Input defines
 #define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
-#define NUM_SHIFTIN_REG		(1)
+#define NUM_SHIFTIN_REG		(2)
 
 /*
  00000000
@@ -62,6 +62,20 @@
 // if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
 #define TRIGGER_ON_CLOCK_BIT	(0x10)
 #define POLY_UNI_MODE_BIT		(0x20)
+
+// second shift-register
+/*
+ 00000000
+ \\\\\\\\_MIDI_CHANNEL_BIT0 \
+  \\\\\\\_MIDI_CHANNEL_BIT1  \_MIDI_CHANNEL
+   \\\\\\_MIDI_CHANNEL_BIT2  /
+    \\\\\_MIDI_CHANNEL_BIT3 /
+     \\\\_reserved
+      \\\_reserved
+       \\_reserved
+        \_reserved
+*/
+#define MIDI_CHANNEL_MASK		(0x0f)
 
 // those voltages created for the values by the DAC
 // will be ~doubled by a OpAmp
@@ -114,6 +128,7 @@ uint8_t midiclock_trigger_mode = 0;
 uint8_t midiclock_counter = 0;
 uint8_t midiclock_trigger_limit = 0;
 
+uint8_t old_midi_channel = 4;
 uint8_t midi_channel = 4;
 
 #define RETRIGGER			(0x01)
@@ -149,7 +164,10 @@ void init_io(void);
 
 // some additional functions needed for our tests
 void dac8568c_write(uint8_t command, uint8_t address, uint32_t data);
+void cli() {}
+void sei() {}
 void sr74hc165_read(uint8_t* buffer, uint8_t numsr);
+void init_input_buffer(void);
 void init_notes(void);
 void prepare_four_notes_on_stack(void);
 void insert_midibuffer_test(testnote_t n);
@@ -251,6 +269,14 @@ void process_user_input(void) {
 		UNSET(program_options, TRIGGER_CLOCK);
 	}
 	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK);
+	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
+	if(midi_channel != old_midi_channel) {
+		cli();
+		init_variables();
+		must_update_dac = true;
+		sei();
+		old_midi_channel = midi_channel;
+	}
 }
 
 void process_analog_in(void) {
@@ -338,6 +364,11 @@ void sr74hc165_read(uint8_t* buffer, uint8_t numsr) {
 	}
 }
 
+void init_input_buffer(void) {
+	memset(input_buffer, 0, NUM_SHIFTIN_REG);
+	input_buffer[1] = midi_channel;
+}
+
 void dac8568c_write(uint8_t command, uint8_t address, uint32_t data) {
 	// don't have no hardware here - hard to test
 }
@@ -385,6 +416,7 @@ void handle_trigger(void) {
 int main(int argc, char** argv) {
 	uint8_t i=0;
 	init_notes();
+	init_input_buffer();
 	printf("testing init_variables() ");
 	{
 		init_variables();
@@ -848,7 +880,7 @@ int main(int argc, char** argv) {
 	printf("} success\n");
 	printf("testing user-input");
 	{
-		input_buffer[0] = 0x00;
+		init_input_buffer();
 		SET(input_buffer[0], POLY_UNI_MODE_BIT);
 		SET(input_buffer[0], RETRIGGER_INPUT_BIT);
 		SET(input_buffer[0], TRIGGER_ON_CLOCK_BIT);
