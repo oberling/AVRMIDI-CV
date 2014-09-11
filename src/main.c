@@ -142,6 +142,7 @@ uint8_t midiclock_trigger_mode = 0;
 uint8_t midiclock_counter = 0;
 uint8_t midiclock_trigger_limit = 0;
 
+uint8_t old_midi_channel = 4;
 uint8_t midi_channel = 4;
 
 #define RETRIGGER			(0x01)
@@ -255,6 +256,13 @@ void process_user_input(void) {
 	}
 	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK);
 	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
+	if(midi_channel != old_midi_channel) {
+		cli();
+		init_variables();
+		must_update_dac = true;
+		sei();
+		old_midi_channel = midi_channel;
+	}
 }
 
 void process_analog_in(void) {
