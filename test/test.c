@@ -1017,5 +1017,33 @@ int main(int argc, char** argv) {
 		}
 	}
 	printf(" success\n");
+	printf("test switching MIDI CHANNEL");
+	{
+		init_variables();
+		init_notes();
+		init_input_buffer();
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].midinote.note == a.byte[1]);
+		// set MIDI_CHANEL to 5, preserving the rest of the byte
+		SET(input_buffer[0], POLY_UNI_MODE_BIT);
+		input_buffer[1] = (input_buffer[1] & 0xf0) | 0x05;
+		process_user_input();
+		assert(playmode == POLYPHONIC_MODE);
+		assert(midi_channel == 5);
+		assert(playing_notes[0].midinote.note == 0x00);
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) != true);
+		a.byte[0] = NOTE_ON(midi_channel);
+		insert_midibuffer_test(a);
+		assert(midibuffer_tick(&midi_buffer) == true);
+		mode[playmode].update_notes(&note_stack, playing_notes);
+		assert(playing_notes[0].midinote.note == a.byte[1]);
+		// reset to channel 4 - not to confuse the following tests
+		input_buffer[1] = (input_buffer[1] & 0xf0) | 0x04;
+		process_user_input();
+	}
+	printf(" success\n");
 	return 0;
 }
