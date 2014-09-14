@@ -10,9 +10,11 @@ IDEAS
 =====
 - would be nice:
 	- 7 segment display for midi channel
-	- button to cycle through midi channels (1 Pin) - hardware debouncing!
+	- multiswitch or simillar to set the midi channel
 	- 7 segment display for operating mode
 	- poti for portamento (1 Pin)
+	- have some soft LFOs instead of velocity outputs
+	- have some general CV instead of velocity outputs
 
 - would be easy:
 	- power LED
