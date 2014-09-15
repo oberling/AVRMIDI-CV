@@ -9,6 +9,7 @@
 #include "playmode.h"
 #include "polyphonic.h"
 #include "unison.h"
+#include "lfo.h"
 
 #include <string.h>
 #include <avr/io.h>
@@ -145,6 +146,9 @@ uint8_t midiclock_trigger_limit = 0;
 uint8_t old_midi_channel = 4;
 uint8_t midi_channel = 4;
 
+#define NUM_LFO		(2)
+lfo_t lfo[NUM_LFO];
+
 #define RETRIGGER			(0x01)
 #define TRIGGER_CLOCK		(0x02)
 
@@ -157,6 +161,7 @@ void update_dac(void);
 void process_user_input(void);
 void process_analog_in(void);
 void init_variables(void);
+void init_lfo(void);
 void init_io(void);
 void update_notes(void);
 
@@ -292,6 +297,16 @@ void init_variables(void) {
 	mode[UNISON_MODE].update_notes = update_notes_unison;
 }
 
+void init_lfo(void) {
+	uint8_t i=0;
+	for(;i<NUM_LFO; i++) {
+		lfo[i].clock_sync = false;
+		lfo[i].stepwidth = 1;
+		lfo[i].get_value = lfo_get_triangle;
+		lfo[i].position = 0;
+	}
+}
+
 void init_io(void) {
 	// setting gate and trigger pins as output pins
 	GATE_DDR = (1<<GATE1)|(1<<GATE2)|(1<<GATE3)|(1<<GATE4);
@@ -302,7 +317,9 @@ void init_io(void) {
 	// calculation: 16000000Hz/1024 = 15625Hz trigger-rate
 	//              15625Hz/256 = 61.035Hz overflow-rate (8-bit timer)
 	//              1/61.035Hz = 16.3ms per overflow
-	TIMSK |= (1<<TOIE0); // enable overflow timer interrupt for timer 0
+	// setting lfo timer
+	TCCR2 = (1<<CS22)|(1<<CS21); // set prescaler to 256 -> 4,096ms (@16MHz Clock)
+	TIMSK |= (1<<TOIE0)|(1<<TOIE2); // enable overflow timer interrupt for timer 0 and 2
 	dac8568c_init();
 	sr74hc165_init(NUM_SHIFTIN_REG);
 	init_analogin();
@@ -346,10 +363,14 @@ ISR(TIMER0_OVF_vect) {
 	}
 }
 
+ISR(TIMER2_OVF_vect) {
+}
+
 int main(int argc, char** argv) {
 	cli();
 	uint8_t i = 0;
 	init_variables();
+	init_lfo();
 	init_io();
 	sei();
 	while(1) {
