@@ -32,6 +32,7 @@
 #define TRIGGER_OFFSET	(2)
 
 #define RETRIGGER_POTI_CHANNEL	(4)
+#define LFO_RATE_POTI_CHANNEL	(5)
 
 #define NUM_PLAY_MODES	(2)
 #define POLYPHONIC_MODE	(0)
@@ -49,9 +50,9 @@
    \\\\\\_TRIGGER_CLOCK_BIT2 /
     \\\\\_RETRIGGER_INPUT_BIT - retrigger enable/disable
      \\\\_TRIGGER_ON_CLOCK_BIT - retrigger synced to midi-clock
-      \\\_POLY_UNI_BIT - polyphonic unison mode
-       \\_reserved
-        \_reserved
+      \\\_MODE_BIT0 - polyphonic unison mode
+       \\_MODE_BIT1 - yet only reserved
+        \_LFO_ENABLE_BIT - lfo enable/velocity disable
 */
 
 // bits in the bytes to represent certain modes
@@ -64,7 +65,9 @@
 #define RETRIGGER_INPUT_BIT		(0x08)
 // if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
 #define TRIGGER_ON_CLOCK_BIT	(0x10)
-#define POLY_UNI_MODE_BIT		(0x20)
+#define MODE_BIT0				(0x20)
+#define MODE_BIT1				(0x40)
+#define LFO_ENABLE_BIT			(0x80)
 
 // second shift-register
 /*
@@ -148,9 +151,11 @@ uint8_t midi_channel = 4;
 
 #define NUM_LFO		(2)
 lfo_t lfo[NUM_LFO];
+volatile bool must_update_lfo = false;
 
 #define RETRIGGER			(0x01)
 #define TRIGGER_CLOCK		(0x02)
+#define LFO_ENABLE			(0x04)
 
 uint8_t program_options = 0x00;
 
@@ -220,9 +225,11 @@ void update_dac(void) {
 		uint32_t voltage;
 		get_voltage(note, &voltage);
 		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
-		// Send velocity
-		get_voltage(velocity, &voltage);
-		dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+		if(!ISSET(program_options, LFO_ENABLE)) {
+			// Send velocity
+			get_voltage(velocity, &voltage);
+			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+		}
 
 		// not putting this if-clause at start because we would have to reset all 
 		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes 
@@ -241,10 +248,20 @@ void update_dac(void) {
 	}
 }
 
+void update_lfo(void) {
+	if(ISSET(program_options, LFO_ENABLE)) {
+		uint8_t i=0;
+		for(;i<NUM_LFO;i++) {
+			uint32_t voltage = lfo[i].get_value(lfo+i);
+			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+		}
+	}
+}
+
 void process_user_input(void) {
 	uint8_t input[NUM_SHIFTIN_REG];
 	sr74hc165_read(input, NUM_SHIFTIN_REG);
-	if(ISSET(input[0], POLY_UNI_MODE_BIT)) {
+	if(ISSET(input[0], MODE_BIT0)) {
 		playmode = POLYPHONIC_MODE;
 	} else {
 		playmode = UNISON_MODE;
@@ -259,6 +276,11 @@ void process_user_input(void) {
 	} else {
 		UNSET(program_options, TRIGGER_CLOCK);
 	}
+	if(ISSET(input[0], LFO_ENABLE_BIT)) {
+		SET(program_options, LFO_ENABLE);
+	} else {
+		UNSET(program_options, LFO_ENABLE);
+	}
 	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK);
 	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
@@ -272,6 +294,10 @@ void process_user_input(void) {
 
 void process_analog_in(void) {
 	retrig = analog_read(RETRIGGER_POTI_CHANNEL);
+	uint8_t i=0;
+	for(;i<NUM_LFO; i++) {
+		lfo[i].stepwidth = ((analog_read(LFO_RATE_POTI_CHANNEL))*4)+1;
+	}
 }
 
 // INFO: assure that this function is called on each increment of midiclock_counter
@@ -364,6 +390,11 @@ ISR(TIMER0_OVF_vect) {
 }
 
 ISR(TIMER2_OVF_vect) {
+	uint8_t i=0;
+	for(;i<NUM_LFO;i++) {
+		lfo[i].position += lfo[i].stepwidth;
+	}
+	must_update_lfo = true;
 }
 
 int main(int argc, char** argv) {
@@ -407,6 +438,10 @@ int main(int argc, char** argv) {
 		if(update_clock) {
 			update_clock = false;
 			update_clock_trigger();
+		}
+		if(must_update_lfo) {
+			must_update_lfo = false;
+			update_lfo();
 		}
 	}
 	return 0;
