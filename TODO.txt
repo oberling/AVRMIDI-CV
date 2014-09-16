@@ -22,8 +22,4 @@ IDEAS
 - other implementations:
 	- arpeggiator - not neccessary... will be done by the DAW (would also need MIDI-Clock and stuff)
 	- protamento - not neccessary... will be done by the synth (would be difficult to implement efficiently but is easy for the synth)
-	- variable midi-channel - might be considerable :)
-
-- Multiswitch for modes:
-	- 8 modes - 3 bit;
 
