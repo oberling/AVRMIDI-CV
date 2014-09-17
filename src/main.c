@@ -69,6 +69,9 @@
 #define MODE_BIT1				(0x40)
 #define LFO_ENABLE_BIT			(0x80)
 
+// we only go from 1 bar to 32th note for retrigger - 3 bit is only 8 options
+#define TRIGGER_LIMIT_OFFSET	(2)
+
 // second shift-register
 /*
  00000000
@@ -118,8 +121,10 @@ uint32_t voltage[11] = {
 };
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
-// 96 - full note; 48 - half note; ... 3 - 32th note
-uint8_t clock_trigger_limit[8] = {
+// 384 - 4 bar; 96 - 1 bar or 1 full note; 48 - half note; ... 3 - 32th note
+uint16_t clock_limit[10] = {
+	384,
+	192,
 	96,
 	48,
 	24,
@@ -143,8 +148,7 @@ volatile bool get_analogin = false;
 retriggercounter_t retrig = 1000;
 volatile bool update_clock = false;
 uint8_t midiclock_trigger_mode = 0;
-uint8_t midiclock_counter = 0;
-uint8_t midiclock_trigger_limit = 0;
+uint16_t midiclock_trigger_counter = 0;
 
 uint8_t old_midi_channel = 4;
 uint8_t midi_channel = 4;
@@ -187,14 +191,14 @@ bool midi_handler_function(midimessage_t* m) {
 	}
 	switch(m->byte[0]) {
 		case CLOCK_SIGNAL:
-			midiclock_counter++;
+			midiclock_trigger_counter++;
 			update_clock = true;
 			break;
 		case CLOCK_START:
-			midiclock_counter = 0;
+			midiclock_trigger_counter = 0;
 			break;
 		case CLOCK_STOP:
-			midiclock_counter = 0;
+			midiclock_trigger_counter = 0;
 			break;
 		case CLOCK_CONTINUE:
 			break;
@@ -281,7 +285,7 @@ void process_user_input(void) {
 	} else {
 		UNSET(program_options, LFO_ENABLE);
 	}
-	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK);
+	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK)+TRIGGER_LIMIT_OFFSET;
 	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
 		cli();
@@ -300,11 +304,11 @@ void process_analog_in(void) {
 	}
 }
 
-// INFO: assure that this function is called on each increment of midiclock_counter
+// INFO: assure that this function is called on each increment of midiclock_trigger_counter
 //       otherwise we may lose trigger-points
 void update_clock_trigger(void) {
-	midiclock_counter %= clock_trigger_limit[midiclock_trigger_mode];
-	if( midiclock_counter == 0 &&
+	midiclock_trigger_counter %= clock_limit[midiclock_trigger_mode];
+	if( midiclock_trigger_counter == 0 &&
 		(ISSET(program_options, TRIGGER_CLOCK))) {
 		uint8_t i=0;
 		for(; i<NUM_PLAY_NOTES; i++) {
