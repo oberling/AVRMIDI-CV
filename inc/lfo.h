@@ -8,8 +8,10 @@
 #define PULSE		(1)
 #define SAWTOOTH	(2)
 
-#define LFO_TABLE_LENGTH		(65535)
-#define LFO_HALF_TABLE_LENGTH	(32767)
+#define LFO_TABLE_LENGTH		(0xffff)
+#define LFO_HALF_TABLE_LENGTH	(0x7fff)
+
+extern uint16_t clock_limit[];
 
 typedef struct lfo_t lfo_t;
 
@@ -18,7 +20,9 @@ typedef uint16_t (*get_lfo_value_t)(lfo_t* lfo);
 struct lfo_t {
 	bool clock_sync;
 	uint16_t stepwidth;
-	uint16_t position;
+	uint32_t position;
+	uint16_t clock_counter;
+	uint8_t clock_mode;
 	get_lfo_value_t get_value;
 };
 

@@ -189,15 +189,25 @@ bool midi_handler_function(midimessage_t* m) {
 		midinote_stack_remove(&note_stack, m->byte[1]);
 		return true;
 	}
+	uint8_t i=0;
 	switch(m->byte[0]) {
 		case CLOCK_SIGNAL:
+			for(;i<NUM_LFO;i++) {
+				lfo[i].clock_counter++;
+			}
 			midiclock_trigger_counter++;
 			update_clock = true;
 			break;
 		case CLOCK_START:
+			for(;i<NUM_LFO;i++) {
+				lfo[i].clock_counter = 0;
+			}
 			midiclock_trigger_counter = 0;
 			break;
 		case CLOCK_STOP:
+			for(;i<NUM_LFO;i++) {
+				lfo[i].clock_counter = 0;
+			}
 			midiclock_trigger_counter = 0;
 			break;
 		case CLOCK_CONTINUE:
@@ -316,6 +326,20 @@ void update_clock_trigger(void) {
 		}
 		must_update_dac = true;
 	}
+	uint8_t i=0;
+	for(;i<NUM_LFO;i++) {
+		lfo[i].clock_counter %= clock_limit[lfo[i].clock_mode];
+		if(lfo[i].clock_counter == 0 &&
+			(ISSET(program_options, LFO_ENABLE))) {
+			// Idea: circle should be completed by now - how many steps are missing?
+			// therefor:
+			//		new stepwidth = old stepwidth
+			//			+ "how much is missing to full circle"/(number of clock_cycles)
+
+			// TODO: that one is really expensive - maybe we can make it cheaper... somehow
+			lfo[i].stepwidth = lfo[i].stepwidth + ((int32_t)(LFO_TABLE_LENGTH - lfo[i].position)/(clock_limit[lfo[i].clock_mode]));
+		}
+	}
 }
 
 void init_variables(void) {
@@ -397,6 +421,9 @@ ISR(TIMER2_OVF_vect) {
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
 		lfo[i].position += lfo[i].stepwidth;
+		if(!lfo[i].clock_sync) {
+			lfo[i].position %= 0xffff;
+		}
 	}
 	must_update_lfo = true;
 }
