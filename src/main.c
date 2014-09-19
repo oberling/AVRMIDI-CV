@@ -93,8 +93,8 @@
  * peek anymore from the stack - but now the new note does. As it is not peeked
  * anymore it gets erased from the playing notes array and the new note gets
  * inserted on that empty spot instead.
- * If any playing note stops playing (before a new one comes in), the newest 
- * non-playing note will come back into the peek_n-return and continues 
+ * If any playing note stops playing (before a new one comes in), the newest
+ * non-playing note will come back into the peek_n-return and continues
  * playing (but maybe on another channel...)
  */
 
@@ -263,9 +263,9 @@ void update_dac(void) {
 			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
 		}
 
-		// not putting this if-clause at start because we would have to reset all 
-		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes 
-		// they are already 0 here if this note is not playing and will get reset 
+		// not putting this if-clause at start because we would have to reset all
+		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes
+		// they are already 0 here if this note is not playing and will get reset
 		// implicitly here
 		if(playing_notes[i].midinote.note != 0) {
 			GATE_PORT |= (1<<(i+(GATE_OFFSET)));
@@ -345,7 +345,7 @@ void update_clock_trigger(void) {
 	}
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
-		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 && 
+		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 &&
 			(ISSET(program_options, LFO_ENABLE))) {
 			lfo[i].last_cycle_completed_tick = ticks;
 		}
