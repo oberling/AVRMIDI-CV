@@ -146,12 +146,27 @@ volatile bool get_shiftin = false;
 uint8_t analog_in_counter = ANALOG_READ_COUNTER;
 volatile bool get_analogin = false;
 retriggercounter_t retrig = 1000;
+
 volatile bool update_clock = false;
 uint8_t midiclock_trigger_mode = 0;
-uint16_t midiclock_trigger_counter = 0;
+
+uint32_t midiclock_counter = 0;
+uint32_t current_midiclock_tick = 0;
+uint32_t last_midiclock_tick = 0;
 
 uint8_t old_midi_channel = 4;
 uint8_t midi_channel = 4;
+
+uint32_t ticks = 0;
+uint8_t ticks_correction = 0;
+uint16_t correction_counter = 0;
+// with our 8 bit timer and prescaler 256 we have
+//		1000/((1/(16MHz/256/256))*1000)=244,140625 interrupts per second -> taking 244
+// which means that if we take 244 we have to take into account that
+// we have to do some error correction here:
+//		1/0,140625=7,11111 -> after 7*244 interrupts we have to increment by 2 instead of 1
+#define TPSEC		(244)
+#define TPSEC_CORR	(7)
 
 #define NUM_LFO		(2)
 lfo_t lfo[NUM_LFO];
@@ -192,23 +207,26 @@ bool midi_handler_function(midimessage_t* m) {
 	uint8_t i=0;
 	switch(m->byte[0]) {
 		case CLOCK_SIGNAL:
-			for(;i<NUM_LFO;i++) {
-				lfo[i].clock_counter++;
-			}
-			midiclock_trigger_counter++;
+			midiclock_counter++;
+			cli();
+			last_midiclock_tick = current_midiclock_tick;
+			current_midiclock_tick = ticks;
+			sei();
 			update_clock = true;
 			break;
 		case CLOCK_START:
-			for(;i<NUM_LFO;i++) {
-				lfo[i].clock_counter = 0;
-			}
-			midiclock_trigger_counter = 0;
+			midiclock_counter = 0;
+			last_midiclock_tick = 0;
+			cli();
+			last_midiclock_tick = current_midiclock_tick = 0;
+			sei();
 			break;
 		case CLOCK_STOP:
-			for(;i<NUM_LFO;i++) {
-				lfo[i].clock_counter = 0;
-			}
-			midiclock_trigger_counter = 0;
+			midiclock_counter = 0;
+			last_midiclock_tick = 0;
+			cli();
+			last_midiclock_tick = current_midiclock_tick = 0;
+			sei();
 			break;
 		case CLOCK_CONTINUE:
 			break;
@@ -314,11 +332,10 @@ void process_analog_in(void) {
 	}
 }
 
-// INFO: assure that this function is called on each increment of midiclock_trigger_counter
+// INFO: assure that this function is called on each increment of midiclock_counter
 //       otherwise we may lose trigger-points
 void update_clock_trigger(void) {
-	midiclock_trigger_counter %= clock_limit[midiclock_trigger_mode];
-	if( midiclock_trigger_counter == 0 &&
+	if( midiclock_counter % clock_limit[midiclock_trigger_mode] == 0 &&
 		(ISSET(program_options, TRIGGER_CLOCK))) {
 		uint8_t i=0;
 		for(; i<NUM_PLAY_NOTES; i++) {
@@ -328,16 +345,9 @@ void update_clock_trigger(void) {
 	}
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
-		lfo[i].clock_counter %= clock_limit[lfo[i].clock_mode];
-		if(lfo[i].clock_counter == 0 &&
+		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 && 
 			(ISSET(program_options, LFO_ENABLE))) {
-			// Idea: circle should be completed by now - how many steps are missing?
-			// therefor:
-			//		new stepwidth = old stepwidth
-			//			+ "how much is missing to full circle"/(number of clock_cycles)
-
-			// TODO: that one is really expensive - maybe we can make it cheaper... somehow
-			lfo[i].stepwidth = lfo[i].stepwidth + ((int32_t)(LFO_TABLE_LENGTH - lfo[i].position)/(clock_limit[lfo[i].clock_mode]));
+			lfo[i].last_cycle_completed_tick = ticks;
 		}
 	}
 }
@@ -418,11 +428,27 @@ ISR(TIMER0_OVF_vect) {
 }
 
 ISR(TIMER2_OVF_vect) {
+	correction_counter++;
+	if(correction_counter == TPSEC) {
+		ticks_correction++;
+		if(ticks_correction == TPSEC_CORR) {
+			ticks++;
+			ticks_correction = 0;
+		}
+		correction_counter = 0;
+	}
+	ticks++;
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
 		lfo[i].position += lfo[i].stepwidth;
 		if(!lfo[i].clock_sync) {
-			lfo[i].position %= 0xffff;
+			lfo[i].position %= LFO_TABLE_LENGTH;
+		} else {
+			// avoid division by 0
+			if(current_midiclock_tick != 0) {
+				lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
+				lfo[i].position = (ticks - lfo[i].last_cycle_completed_tick) * lfo[i].stepwidth;
+			}
 		}
 	}
 	must_update_lfo = true;

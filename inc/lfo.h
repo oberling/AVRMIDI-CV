@@ -21,6 +21,7 @@ struct lfo_t {
 	bool clock_sync;
 	uint16_t stepwidth;
 	uint32_t position;
+	uint32_t last_cycle_completed_tick;
 	uint16_t clock_counter;
 	uint8_t clock_mode;
 	get_lfo_value_t get_value;
