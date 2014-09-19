@@ -46,7 +46,6 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* play
 			for(j=0; j<NUM_PLAY_NOTES; j++) {
 				if((playing_notes+j)->midinote.note == 0) {
 					(playing_notes+j)->midinote = *(it+i);
-					SET((playing_notes+j)->flags, TRIGGER_FLAG);
 					break;
 				}
 			}

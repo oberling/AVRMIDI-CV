@@ -4,6 +4,7 @@
 	- there are 4 KeyCV outputs needed from the DAC and 4 Velocity outputs - makes 8 DAC-Outputs
 	- check whether 15V works better
 
+- make hardware trigger from gate-output - saves some pins
 - switchable GATE-/TRIGGER-Voltages via jumper and OpAmp
 
 IDEAS

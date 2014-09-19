@@ -12,7 +12,6 @@ implemented Features
 * 4 Voice CV + 4 Gate + 4 Trigger outputs
 * Polyphonic mode
 * Unison mode
-* Retrigger (time based; MIDI Clock synchronized)
 
 Teststatus
 ==========
@@ -36,6 +35,7 @@ TODO
 * design a circuit
  * check if doubling voltage circuit works better with +-15V
  * some simple transistors for GATE and trigger outputs
+ * convert GATE to TRIGGER (4050) - make it switchable different voltage levels
  * last not least design a PCB layout
 * test on device
 

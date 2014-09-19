@@ -23,15 +23,6 @@
 #define GATE4		PC3
 #define GATE_OFFSET	(0)
 
-#define TRIGGER_PORT	PORTD
-#define TRIGGER_DDR		DDRD
-#define TRIGGER1		PD2
-#define TRIGGER2		PD3
-#define TRIGGER3		PD4
-#define TRIGGER4		PD5
-#define TRIGGER_OFFSET	(2)
-
-#define RETRIGGER_POTI_CHANNEL	(4)
 #define LFO_RATE_POTI_CHANNEL	(5)
 
 #define NUM_PLAY_MODES	(2)
@@ -45,32 +36,20 @@
 
 /*
  00000000
- \\\\\\\\_TRIGGER_CLOCK_BIT0 \
-  \\\\\\\_TRIGGER_CLOCK_BIT1  - trigger frequency (8 modes)
-   \\\\\\_TRIGGER_CLOCK_BIT2 /
-    \\\\\_RETRIGGER_INPUT_BIT - retrigger enable/disable
-     \\\\_TRIGGER_ON_CLOCK_BIT - retrigger synced to midi-clock
+ \\\\\\\\_reserved \
+  \\\\\\\_reserved  - reserved bits
+   \\\\\\_reserved /
+    \\\\\_reserved
+     \\\\_reserved
       \\\_MODE_BIT0 - polyphonic unison mode
        \\_MODE_BIT1 - yet only reserved
         \_LFO_ENABLE_BIT - lfo enable/velocity disable
 */
 
 // bits in the bytes to represent certain modes
-// have us 8 different clock trigger modes possible
-#define TRIGGER_CLOCK_BIT0		(0x01)
-#define TRIGGER_CLOCK_BIT1		(0x02)
-#define TRIGGER_CLOCK_BIT2		(0x04)
-#define TRIGGER_BIT_MASK		(0x03)
-// if set we will retrigger
-#define RETRIGGER_INPUT_BIT		(0x08)
-// if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
-#define TRIGGER_ON_CLOCK_BIT	(0x10)
 #define MODE_BIT0				(0x20)
 #define MODE_BIT1				(0x40)
 #define LFO_ENABLE_BIT			(0x80)
-
-// we only go from 1 bar to 32th note for retrigger - 3 bit is only 8 options
-#define TRIGGER_LIMIT_OFFSET	(2)
 
 // second shift-register
 /*
@@ -145,10 +124,8 @@ uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
 volatile bool get_shiftin = false;
 uint8_t analog_in_counter = ANALOG_READ_COUNTER;
 volatile bool get_analogin = false;
-retriggercounter_t retrig = 1000;
 
 volatile bool update_clock = false;
-uint8_t midiclock_trigger_mode = 0;
 
 uint32_t midiclock_counter = 0;
 uint32_t current_midiclock_tick = 0;
@@ -172,8 +149,6 @@ uint16_t correction_counter = 0;
 lfo_t lfo[NUM_LFO];
 volatile bool must_update_lfo = false;
 
-#define RETRIGGER			(0x01)
-#define TRIGGER_CLOCK		(0x02)
 #define LFO_ENABLE			(0x04)
 
 uint8_t program_options = 0x00;
@@ -204,7 +179,6 @@ bool midi_handler_function(midimessage_t* m) {
 		midinote_stack_remove(&note_stack, m->byte[1]);
 		return true;
 	}
-	uint8_t i=0;
 	switch(m->byte[0]) {
 		case CLOCK_SIGNAL:
 			midiclock_counter++;
@@ -272,11 +246,6 @@ void update_dac(void) {
 		} else {
 			GATE_PORT &= ~(1<<(i+(GATE_OFFSET)));
 		}
-		if(playing_notes[i].trigger_counter > 0) {
-			TRIGGER_PORT |= (1<<(i+(TRIGGER_OFFSET)));
-		} else {
-			TRIGGER_PORT &= ~(1<<(i+(TRIGGER_OFFSET)));
-		}
 	}
 }
 
@@ -298,22 +267,11 @@ void process_user_input(void) {
 	} else {
 		playmode = UNISON_MODE;
 	}
-	if(ISSET(input[0], RETRIGGER_INPUT_BIT)) {
-		SET(program_options, RETRIGGER);
-	} else {
-		UNSET(program_options, RETRIGGER);
-	}
-	if(ISSET(input[0], TRIGGER_ON_CLOCK_BIT)) {
-		SET(program_options, TRIGGER_CLOCK);
-	} else {
-		UNSET(program_options, TRIGGER_CLOCK);
-	}
 	if(ISSET(input[0], LFO_ENABLE_BIT)) {
 		SET(program_options, LFO_ENABLE);
 	} else {
 		UNSET(program_options, LFO_ENABLE);
 	}
-	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK)+TRIGGER_LIMIT_OFFSET;
 	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
 		cli();
@@ -325,7 +283,6 @@ void process_user_input(void) {
 }
 
 void process_analog_in(void) {
-	retrig = analog_read(RETRIGGER_POTI_CHANNEL);
 	uint8_t i=0;
 	for(;i<NUM_LFO; i++) {
 		lfo[i].stepwidth = ((analog_read(LFO_RATE_POTI_CHANNEL))*4)+1;
@@ -335,16 +292,8 @@ void process_analog_in(void) {
 // INFO: assure that this function is called on each increment of midiclock_counter
 //       otherwise we may lose trigger-points
 void update_clock_trigger(void) {
-	if( midiclock_counter % clock_limit[midiclock_trigger_mode] == 0 &&
-		(ISSET(program_options, TRIGGER_CLOCK))) {
-		uint8_t i=0;
-		for(; i<NUM_PLAY_NOTES; i++) {
-			SET(playing_notes[i].flags, TRIGGER_FLAG);
-		}
-		must_update_dac = true;
-	}
-	uint8_t i=0;
-	for(;i<NUM_LFO;i++) {
+	uint8_t i;
+	for(i=0;i<NUM_LFO;i++) {
 		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 &&
 			(ISSET(program_options, LFO_ENABLE))) {
 			lfo[i].last_cycle_completed_tick = ticks;
@@ -374,7 +323,6 @@ void init_lfo(void) {
 void init_io(void) {
 	// setting gate and trigger pins as output pins
 	GATE_DDR = (1<<GATE1)|(1<<GATE2)|(1<<GATE3)|(1<<GATE4);
-	TRIGGER_DDR = (1<<TRIGGER1)|(1<<TRIGGER2)|(1<<TRIGGER3)|(1<<TRIGGER4);
 
 	// setting trigger timer
 	TCCR0 = (1<<CS02)|(1<<CS00); // set prescaler to 1024 -> ~16ms (@16MHz Clock)
@@ -401,22 +349,6 @@ ISR(USART_RXC_vect) {
 
 // ISR for timer 0 overflow - every ~16ms (calculation see init_io())
 ISR(TIMER0_OVF_vect) {
-	uint8_t i=0;
-	for(;i<NUM_PLAY_NOTES; i++) {
-		if(playing_notes[i].trigger_counter > 0) {
-			playing_notes[i].trigger_counter--;
-			if(playing_notes[i].trigger_counter == 0) {
-				must_update_dac = true;
-			}
-		}
-		if(	ISSET(program_options, RETRIGGER) &&
-			(!ISSET(program_options, TRIGGER_CLOCK))) {
-			if(playing_notes[i].retrigger_counter++ >= retrig) {
-				playing_notes[i].retrigger_counter = 0;
-				SET(playing_notes[i].flags, TRIGGER_FLAG);
-			}
-		}
-	}
 	if(shift_in_trigger_counter-- == 0) {
 		shift_in_trigger_counter = SHIFTIN_TRIGGER;
 		get_shiftin = true;
@@ -466,15 +398,6 @@ int main(int argc, char** argv) {
 		if(midibuffer_tick(&midi_buffer)) {
 			mode[playmode].update_notes(&note_stack, playing_notes);
 			must_update_dac = true;
-		}
-
-		// handle newly triggered notes
-		for(i=0;i<NUM_PLAY_NOTES; ++i) {
-			if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
-				UNSET(playing_notes[i].flags, TRIGGER_FLAG);
-				playing_notes[i].trigger_counter = TRIGGER_COUNTER_INIT;
-				must_update_dac = true;
-			}
 		}
 
 		// as our TIMER_Interupt might change must_update_dac

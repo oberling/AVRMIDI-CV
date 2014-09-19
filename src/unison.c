@@ -12,7 +12,6 @@ void __update_notes_unison(midinote_stack_t* note_stack, playingnote_t* playing_
 		if(playing_notes[i].midinote.note != it->note) {
 			for(;i<NUM_PLAY_NOTES; i++) {
 				playing_notes[i].midinote = *it;
-				SET(playing_notes[i].flags, TRIGGER_FLAG);
 			}
 		} else if (playing_notes[i].midinote.velocity != it->velocity) {
 			for(;i<NUM_PLAY_NOTES; i++) {
