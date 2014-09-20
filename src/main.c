@@ -32,14 +32,14 @@
 // User Input defines
 #define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
-#define NUM_SHIFTIN_REG		(2)
+#define NUM_SHIFTIN_REG		(1)
 
 /*
  00000000
- \\\\\\\\_reserved \
-  \\\\\\\_reserved  - reserved bits
-   \\\\\\_reserved /
-    \\\\\_reserved
+ \\\\\\\\_MIDI_CHANNEL_BIT0 \
+  \\\\\\\_MIDI_CHANNEL_BIT1  \_MIDI_CHANNEL
+   \\\\\\_MIDI_CHANNEL_BIT2  /
+    \\\\\_MIDI_CHANNEL_BIT3 /
      \\\\_reserved
       \\\_MODE_BIT0 - polyphonic unison mode
        \\_MODE_BIT1 - yet only reserved
@@ -51,18 +51,6 @@
 #define MODE_BIT1				(0x40)
 #define LFO_ENABLE_BIT			(0x80)
 
-// second shift-register
-/*
- 00000000
- \\\\\\\\_MIDI_CHANNEL_BIT0 \
-  \\\\\\\_MIDI_CHANNEL_BIT1  \_MIDI_CHANNEL
-   \\\\\\_MIDI_CHANNEL_BIT2  /
-    \\\\\_MIDI_CHANNEL_BIT3 /
-     \\\\_reserved
-      \\\_reserved
-       \\_reserved
-        \_reserved
-*/
 #define MIDI_CHANNEL_MASK		(0x0f)
 
 /**
@@ -272,7 +260,7 @@ void process_user_input(void) {
 	} else {
 		UNSET(program_options, LFO_ENABLE);
 	}
-	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
+	midi_channel = (input[0] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
 		cli();
 		init_variables();
