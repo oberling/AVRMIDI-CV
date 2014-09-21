@@ -177,12 +177,6 @@ bool midi_handler_function(midimessage_t* m) {
 			update_clock = true;
 			break;
 		case CLOCK_START:
-			midiclock_counter = 0;
-			last_midiclock_tick = 0;
-			cli();
-			last_midiclock_tick = current_midiclock_tick = 0;
-			sei();
-			break;
 		case CLOCK_STOP:
 			midiclock_counter = 0;
 			last_midiclock_tick = 0;
