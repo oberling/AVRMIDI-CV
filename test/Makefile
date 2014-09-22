@@ -4,7 +4,8 @@ TARGET = test
 
 SRCDIR = ../src/
 INCDIR = ../inc/
-SOURCES = ../src/midibuffer.c \
+SOURCES = ../src/lfo.c \
+	  ../src/midibuffer.c \
 	  ../src/midinote_stack.c \
 	  ../src/polyphonic.c \
 	  ../src/ringbuffer.c \

@@ -9,6 +9,7 @@
 #include "playmode.h"
 #include "polyphonic.h"
 #include "unison.h"
+#include "lfo.h"
 
 #define DAC_WRITE_UPDATE_N			(3)
 
@@ -20,15 +21,7 @@
 #define GATE4		PC3
 #define GATE_OFFSET	(0)
 
-#define TRIGGER_PORT	trigger_port
-#define TRIGGER_DDR		DDRD
-#define TRIGGER1		PD2
-#define TRIGGER2		PD3
-#define TRIGGER3		PD4
-#define TRIGGER4		PD5
-#define TRIGGER_OFFSET	(2)
-
-#define RETRIGGER_POTI_CHANNEL	(4)
+#define LFO_RATE_POTI_CHANNEL	(5)
 
 #define NUM_PLAY_MODES	(2)
 #define POLYPHONIC_MODE	(0)
@@ -37,33 +30,8 @@
 // User Input defines
 #define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
-#define NUM_SHIFTIN_REG		(2)
+#define NUM_SHIFTIN_REG		(1)
 
-/*
- 00000000
- \\\\\\\\_TRIGGER_CLOCK_BIT0 \
-  \\\\\\\_TRIGGER_CLOCK_BIT1  - trigger frequency (8 modes)
-   \\\\\\_TRIGGER_CLOCK_BIT2 /
-    \\\\\_RETRIGGER_INPUT_BIT - retrigger enable/disable
-     \\\\_TRIGGER_ON_CLOCK_BIT - retrigger synced to midi-clock
-      \\\_POLY_UNI_BIT - polyphonic unison mode
-       \\_reserved
-        \_reserved
-*/
-
-// bits in the bytes to represent certain modes
-// have us 8 different clock trigger modes possible
-#define TRIGGER_CLOCK_BIT0		(0x01)
-#define TRIGGER_CLOCK_BIT1		(0x02)
-#define TRIGGER_CLOCK_BIT2		(0x04)
-#define TRIGGER_BIT_MASK		(0x03)
-// if set we will retrigger
-#define RETRIGGER_INPUT_BIT		(0x08)
-// if this and the RETRIGGER_INPUT_BIT are set we trigger according to the midi-clock signal
-#define TRIGGER_ON_CLOCK_BIT	(0x10)
-#define POLY_UNI_MODE_BIT		(0x20)
-
-// second shift-register
 /*
  00000000
  \\\\\\\\_MIDI_CHANNEL_BIT0 \
@@ -71,10 +39,16 @@
    \\\\\\_MIDI_CHANNEL_BIT2  /
     \\\\\_MIDI_CHANNEL_BIT3 /
      \\\\_reserved
-      \\\_reserved
-       \\_reserved
-        \_reserved
+      \\\_MODE_BIT0 - polyphonic unison mode
+       \\_MODE_BIT1 - yet only reserved
+        \_LFO_ENABLE_BIT - lfo enable/velocity disable
 */
+
+// bits in the bytes to represent certain modes
+#define MODE_BIT0				(0x20)
+#define MODE_BIT1				(0x40)
+#define LFO_ENABLE_BIT			(0x80)
+
 #define MIDI_CHANNEL_MASK		(0x0f)
 
 // those voltages created for the values by the DAC
@@ -101,7 +75,9 @@ uint32_t voltage[11] = {
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
 // 96 - full note; 48 - half note; ... 3 - 32th note
-uint8_t clock_trigger_limit[8] = {
+uint16_t clock_limit[10] = {
+	384,
+	192,
 	96,
 	48,
 	24,
@@ -122,17 +98,32 @@ uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
 volatile bool get_shiftin = false;
 uint8_t analog_in_counter = ANALOG_READ_COUNTER;
 volatile bool get_analogin = false;
-retriggercounter_t retrig = 1000;
+
 volatile bool update_clock = false;
-uint8_t midiclock_trigger_mode = 0;
-uint8_t midiclock_counter = 0;
-uint8_t midiclock_trigger_limit = 0;
+
+uint32_t midiclock_counter = 0;
+uint32_t current_midiclock_tick = 0;
+uint32_t last_midiclock_tick = 0;
 
 uint8_t old_midi_channel = 4;
 uint8_t midi_channel = 4;
 
-#define RETRIGGER			(0x01)
-#define TRIGGER_CLOCK		(0x02)
+uint32_t ticks = 0;
+uint8_t ticks_correction = 0;
+uint16_t correction_counter = 0;
+// with our 8 bit timer and prescaler 256 we have
+//		1000/((1/(16MHz/256/256))*1000)=244,140625 interrupts per second -> taking 244
+// which means that if we take 244 we have to take into account that
+// we have to do some error correction here:
+//		1/0,140625=7,11111 -> after 7*244 interrupts we have to increment by 2 instead of 1
+#define TPSEC		(244)
+#define TPSEC_CORR	(7)
+
+#define NUM_LFO		(2)
+lfo_t lfo[NUM_LFO];
+volatile bool must_update_lfo = false;
+
+#define LFO_ENABLE			(0x04)
 
 uint8_t program_options = 0x00;
 
@@ -172,7 +163,6 @@ void init_notes(void);
 void prepare_four_notes_on_stack(void);
 void insert_midibuffer_test(testnote_t n);
 void timer1_overflow_function(void);
-void handle_trigger(void);
 // ----------------------------------------------
 
 bool midi_handler_function(midimessage_t* m) {
@@ -193,13 +183,19 @@ bool midi_handler_function(midimessage_t* m) {
 	switch(m->byte[0]) {
 		case CLOCK_SIGNAL:
 			midiclock_counter++;
+			cli();
+			last_midiclock_tick = current_midiclock_tick;
+			current_midiclock_tick = ticks;
+			sei();
 			update_clock = true;
 			break;
 		case CLOCK_START:
-			midiclock_counter = 0;
-			break;
 		case CLOCK_STOP:
 			midiclock_counter = 0;
+			last_midiclock_tick = 0;
+			cli();
+			last_midiclock_tick = current_midiclock_tick = 0;
+			sei();
 			break;
 		case CLOCK_CONTINUE:
 			break;
@@ -229,23 +225,30 @@ void update_dac(void) {
 		uint32_t voltage;
 		get_voltage(note, &voltage);
 		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
-		// Send velocity
-		get_voltage(velocity, &voltage);
-		dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+		if(!ISSET(program_options, LFO_ENABLE)) {
+			// Send velocity
+			get_voltage(velocity, &voltage);
+			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+		}
 
-		// not putting this if-clause at start because we would have to reset all 
-		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes 
-		// they are already 0 here if this note is not playing and will get reset 
+		// not putting this if-clause at start because we would have to reset all
+		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes
+		// they are already 0 here if this note is not playing and will get reset
 		// implicitly here
 		if(playing_notes[i].midinote.note != 0) {
 			GATE_PORT |= (1<<(i+(GATE_OFFSET)));
 		} else {
 			GATE_PORT &= ~(1<<(i+(GATE_OFFSET)));
 		}
-		if(playing_notes[i].trigger_counter > 0) {
-			TRIGGER_PORT |= (1<<(i+(TRIGGER_OFFSET)));
-		} else {
-			TRIGGER_PORT &= ~(1<<(i+(TRIGGER_OFFSET)));
+	}
+}
+
+void update_lfo(void) {
+	if(ISSET(program_options, LFO_ENABLE)) {
+		uint8_t i=0;
+		for(;i<NUM_LFO;i++) {
+			uint32_t voltage = lfo[i].get_value(lfo+i);
+			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
 		}
 	}
 }
@@ -253,23 +256,17 @@ void update_dac(void) {
 void process_user_input(void) {
 	uint8_t input[NUM_SHIFTIN_REG];
 	sr74hc165_read(input, NUM_SHIFTIN_REG);
-	if(ISSET(input[0], POLY_UNI_MODE_BIT)) {
+	if(ISSET(input[0], MODE_BIT0)) {
 		playmode = POLYPHONIC_MODE;
 	} else {
 		playmode = UNISON_MODE;
 	}
-	if(ISSET(input[0], RETRIGGER_INPUT_BIT)) {
-		SET(program_options, RETRIGGER);
+	if(ISSET(input[0], LFO_ENABLE_BIT)) {
+		SET(program_options, LFO_ENABLE);
 	} else {
-		UNSET(program_options, RETRIGGER);
+		UNSET(program_options, LFO_ENABLE);
 	}
-	if(ISSET(input[0], TRIGGER_ON_CLOCK_BIT)) {
-		SET(program_options, TRIGGER_CLOCK);
-	} else {
-		UNSET(program_options, TRIGGER_CLOCK);
-	}
-	midiclock_trigger_mode = (input[0] & TRIGGER_BIT_MASK);
-	midi_channel = (input[1] & MIDI_CHANNEL_MASK);
+	midi_channel = (input[0] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
 		cli();
 		init_variables();
@@ -281,20 +278,21 @@ void process_user_input(void) {
 
 void process_analog_in(void) {
 	assert(analog_input_value<1024);
-	retrig = analog_input_value;
+	uint8_t i=0;
+	for(;i<NUM_LFO; i++) {
+		lfo[i].stepwidth = analog_input_value;
+	}
 }
 
 // INFO: assure that this function is called on each increment of midiclock_counter
 //       otherwise we may lose trigger-points
 void update_clock_trigger(void) {
-	midiclock_counter %= clock_trigger_limit[midiclock_trigger_mode];
-	if( midiclock_counter == 0 &&
-		(ISSET(program_options, TRIGGER_CLOCK))) {
-		uint8_t i=0;
-		for(; i<NUM_PLAY_NOTES; i++) {
-			SET(playing_notes[i].flags, TRIGGER_FLAG);
+	uint8_t i;
+	for(i=0;i<NUM_LFO;i++) {
+		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 &&
+			(ISSET(program_options, LFO_ENABLE))) {
+			lfo[i].last_cycle_completed_tick = ticks;
 		}
-		must_update_dac = true;
 	}
 }
 
@@ -305,6 +303,16 @@ void init_variables(void) {
 	memset(mode, 0, sizeof(playmode_t)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
 	mode[UNISON_MODE].update_notes = update_notes_unison;
+}
+
+void init_lfo(void) {
+	uint8_t i=0;
+	for(;i<NUM_LFO; i++) {
+		lfo[i].clock_sync = false;
+		lfo[i].stepwidth = 1;
+		lfo[i].get_value = lfo_get_triangle;
+		lfo[i].position = 0;
+	}
 }
 
 void init_io(void) {
@@ -374,22 +382,6 @@ void dac8568c_write(uint8_t command, uint8_t address, uint32_t data) {
 }
 
 void timer1_overflow_function(void) {
-	uint8_t i=0;
-	for(;i<NUM_PLAY_NOTES; i++) {
-		if(playing_notes[i].trigger_counter > 0) {
-			playing_notes[i].trigger_counter--;
-			if(playing_notes[i].trigger_counter == 0) {
-				must_update_dac = true;
-			}
-		}
-		if(	ISSET(program_options, RETRIGGER) &&
-			(!ISSET(program_options, TRIGGER_CLOCK))) {
-			if(playing_notes[i].retrigger_counter++ >= retrig) {
-				playing_notes[i].retrigger_counter = 0;
-				SET(playing_notes[i].flags, TRIGGER_FLAG);
-			}
-		}
-	}
 	if(shift_in_trigger_counter-- == 0) {
 		shift_in_trigger_counter = SHIFTIN_TRIGGER;
 		get_shiftin = true;
@@ -400,18 +392,32 @@ void timer1_overflow_function(void) {
 	}
 }
 
-void handle_trigger(void) {
+void timer2_overflow_function(void) {
+	correction_counter++;
+	if(correction_counter == TPSEC) {
+		ticks_correction++;
+		if(ticks_correction == TPSEC_CORR) {
+			ticks++;
+			ticks_correction = 0;
+		}
+		correction_counter = 0;
+	}
+	ticks++;
 	uint8_t i=0;
-	// handle newly triggered notes
-	for(;i<NUM_PLAY_NOTES; ++i) {
-		if(ISSET(playing_notes[i].flags, TRIGGER_FLAG)) {
-			UNSET(playing_notes[i].flags, TRIGGER_FLAG);
-			playing_notes[i].trigger_counter = TRIGGER_COUNTER_INIT;
-			must_update_dac = true;
+	for(;i<NUM_LFO;i++) {
+		lfo[i].position += lfo[i].stepwidth;
+		if(!lfo[i].clock_sync) {
+			lfo[i].position %= LFO_TABLE_LENGTH;
+		} else {
+			// avoid division by 0
+			if(current_midiclock_tick != 0) {
+				lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
+				lfo[i].position = (ticks - lfo[i].last_cycle_completed_tick) * lfo[i].stepwidth;
+			}
 		}
 	}
+	must_update_lfo = true;
 }
-
 
 int main(int argc, char** argv) {
 	uint8_t i=0;
@@ -793,143 +799,13 @@ int main(int argc, char** argv) {
 		assert(HARDWARE_GATEPORT == 15);
 	}
 	printf(" success\n");
-	printf("testing trigger-setting and unsetting process {");
-	{
-		printf("\n");
-		printf("\ttesting simultanous notes");
-		init_variables();
-		init_notes();
-		prepare_four_notes_on_stack();
-		playmode = POLYPHONIC_MODE;
-		must_update_dac = false;
-		handle_trigger();
-		assert(must_update_dac == false);
-		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(playing_notes[0].midinote.note == a.byte[1]);
-		assert(playing_notes[1].midinote.note == b.byte[1]);
-		assert(playing_notes[2].midinote.note == c.byte[1]);
-		assert(playing_notes[3].midinote.note == d.byte[1]);
-		uint8_t i=0;
-		for(;i<NUM_PLAY_NOTES; i++) {
-			assert(ISSET(playing_notes[i].flags, TRIGGER_FLAG)==true);
-		}
-		handle_trigger();
-		assert(must_update_dac == true);
-		// here we could already update our dac - but let's test that in a different test
-		must_update_dac = false;
-		for(i=TRIGGER_COUNTER_INIT; i>0; i--) {
-			timer1_overflow_function();
-			uint8_t j=0;
-			for(; j<NUM_PLAY_NOTES; j++) {
-				assert(playing_notes[j].trigger_counter == i-1);
-				if(i-1 != 0) {
-					assert(must_update_dac == false);
-				}
-			}
-		}
-		assert(must_update_dac == true);
-		printf(" success\n");
-		printf("\ttesting some notes on and off");
-		init_variables();
-		init_notes();
-		playmode = POLYPHONIC_MODE;
-		insert_midibuffer_test(a);
-		midibuffer_tick(&midi_buffer);
-		mode[playmode].update_notes(&note_stack, playing_notes);
-		handle_trigger();
-		timer1_overflow_function(); //Note a TRIGGER_COUNTER_INIT-1
-		timer1_overflow_function(); //Note a TRIGGER_COUNTER_INIT-2
-		insert_midibuffer_test(b);
-		midibuffer_tick(&midi_buffer);
-		mode[playmode].update_notes(&note_stack, playing_notes);
-		timer1_overflow_function(); //...
-		handle_trigger();
-		insert_midibuffer_test(c);
-		midibuffer_tick(&midi_buffer);
-		mode[playmode].update_notes(&note_stack, playing_notes);
-		handle_trigger();
-		timer1_overflow_function(); //...
-		insert_midibuffer_test(d);
-		midibuffer_tick(&midi_buffer);
-		mode[playmode].update_notes(&note_stack, playing_notes);
-		handle_trigger();
-		timer1_overflow_function();
-		assert(playing_notes[0].trigger_counter == TRIGGER_COUNTER_INIT-5);
-		assert(playing_notes[1].trigger_counter == TRIGGER_COUNTER_INIT-2);
-		assert(playing_notes[2].trigger_counter == TRIGGER_COUNTER_INIT-2);
-		assert(playing_notes[3].trigger_counter == TRIGGER_COUNTER_INIT-1);
-		timer1_overflow_function();
-		if(TRIGGER_COUNTER_INIT == 6) // that's a little odd... but how else shall we do it?
-			assert(playing_notes[0].trigger_counter == 0);
-		assert(ISSET(playing_notes[0].flags, TRIGGER_FLAG) == false);
-		timer1_overflow_function();
-		timer1_overflow_function();
-		c.byte[0] = NOTE_OFF(midi_channel);
-		insert_midibuffer_test(c);
-		midibuffer_tick(&midi_buffer);
-		assert(playing_notes[2].trigger_counter == TRIGGER_COUNTER_INIT-5);
-		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(playing_notes[2].trigger_counter == 0);
-		assert(playing_notes[2].midinote.note == 0);
-		timer1_overflow_function();
-		assert(playing_notes[1].trigger_counter == 0);
-		assert(ISSET(playing_notes[1].flags, TRIGGER_FLAG) == false);
-		assert(playing_notes[3].trigger_counter == TRIGGER_COUNTER_INIT-5);
-		printf(" success\n");
-	}
-	printf("} success\n");
 	printf("testing user-input");
 	{
 		init_input_buffer();
-		SET(input_buffer[0], POLY_UNI_MODE_BIT);
-		SET(input_buffer[0], RETRIGGER_INPUT_BIT);
-		SET(input_buffer[0], TRIGGER_ON_CLOCK_BIT);
-		SET(input_buffer[0], TRIGGER_CLOCK_BIT1);
+		input_buffer[0] = (input_buffer[0] & 0xf0) | midi_channel;
+		SET(input_buffer[0], MODE_BIT0);
 		process_user_input();
 		assert(playmode == POLYPHONIC_MODE);
-		// cannot check againstr ture as 0x02 != 0x01 but 0x01 is defined as true
-		// but ISSET will evaluate against something other than 0x01
-		assert(ISSET(program_options, RETRIGGER) != false);
-		assert(ISSET(program_options, TRIGGER_CLOCK) != false);
-		assert(midiclock_trigger_mode == 2);
-	}
-	printf(" success\n");
-	printf("testing midi_clock trigger");
-	{
-		midiclock_counter = 0;
-		uint8_t j=0;
-		// testing it two times... just to make shure...
-		for(j=0; j<2; j++) {
-			uint8_t i=0;
-			for(i=0; i<NUM_PLAY_NOTES; i++) {
-				assert(ISSET(playing_notes[0].flags, TRIGGER_FLAG) == false);
-			}
-			for(i=0; i<clock_trigger_limit[midiclock_trigger_mode];i++) {
-				assert(midibuffer_put(&midi_buffer, CLOCK_SIGNAL) == true);
-				assert(midibuffer_tick(&midi_buffer) == true);
-				assert(midiclock_counter == i+1);
-				must_update_dac = false;
-				update_clock_trigger();
-				if(i+1 == clock_trigger_limit[midiclock_trigger_mode])
-					assert(must_update_dac == true);
-				else
-					assert(must_update_dac == false);
-			}
-			for(i=0; i<NUM_PLAY_NOTES; i++) {
-				assert(ISSET(playing_notes[0].flags, TRIGGER_FLAG) != false);
-			}
-			handle_trigger();
-		}
-		assert(midibuffer_put(&midi_buffer, CLOCK_SIGNAL) == true);
-		assert(midibuffer_tick(&midi_buffer) == true);
-		assert(midiclock_counter == 1);
-		must_update_dac = false;
-		update_clock_trigger();
-		assert(must_update_dac == false);
-		assert(midibuffer_put(&midi_buffer, CLOCK_STOP) == true);
-		assert(midibuffer_tick(&midi_buffer) == true);
-		assert(midiclock_counter == 0);
-		must_update_dac = false;
 	}
 	printf(" success\n");
 	printf("testing get_voltage ");
@@ -958,7 +834,7 @@ int main(int argc, char** argv) {
 	{
 		init_variables();
 		testnote_t z;
-		z.byte[0] = 0x94;
+		z.byte[0] = NOTE_ON(midi_channel);
 		z.byte[1] = 0x3c;
 		z.byte[2] = 0x72;
 		insert_midibuffer_test(z);
@@ -968,7 +844,7 @@ int main(int argc, char** argv) {
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
 		assert(playing_notes[0].midinote.note == 0x00);
 		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(must_update_dac == false);
+		assert(must_update_dac != true);
 		assert(playing_notes[0].midinote.note == 0x3c);
 		assert(gate_port == 0x00);
 		update_dac();
@@ -1027,8 +903,8 @@ int main(int argc, char** argv) {
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == a.byte[1]);
 		// set MIDI_CHANEL to 5, preserving the rest of the byte
-		SET(input_buffer[0], POLY_UNI_MODE_BIT);
-		input_buffer[1] = (input_buffer[1] & 0xf0) | 0x05;
+		input_buffer[0] = (input_buffer[0] & 0xf0) | 0x05;
+		SET(input_buffer[0], MODE_BIT0);
 		process_user_input();
 		assert(playmode == POLYPHONIC_MODE);
 		assert(midi_channel == 5);
@@ -1041,7 +917,7 @@ int main(int argc, char** argv) {
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == a.byte[1]);
 		// reset to channel 4 - not to confuse the following tests
-		input_buffer[1] = (input_buffer[1] & 0xf0) | 0x04;
+		input_buffer[0] = (input_buffer[0] & 0xf0) | 0x04;
 		process_user_input();
 	}
 	printf(" success\n");
