@@ -150,7 +150,6 @@ void process_analog_in(void);
 void init_variables(void);
 void init_lfo(void);
 void init_io(void);
-void update_notes(void);
 
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
