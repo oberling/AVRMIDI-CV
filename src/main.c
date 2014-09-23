@@ -76,6 +76,11 @@
 #define LFO0_OFFSET	(0)
 #define LFO1_OFFSET	(3)
 
+const uint8_t lfo_offset[2] = {
+	0,
+	3
+};
+
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
  * peek_n-method on the note-stack: if a new (5th) note "overwrites" the oldest
@@ -286,8 +291,24 @@ void process_user_input(void) {
 	}
 	lfo[0].clock_sync = ISSET(input[1], LFO0_CLOCKSYNC);
 	lfo[1].clock_sync = ISSET(input[1], LFO1_CLOCKSYNC);
-	lfo[0].clock_mode = (input[1]>>LFO0_OFFSET)& LFO_MASK;
-	lfo[1].clock_mode = (input[1]>>LFO1_OFFSET)& LFO_MASK;
+	uint8_t wave_settings;
+	uint8_t i= 0;
+	for(;i<NUM_LFO;i++) {
+		wave_settings = (input[1]>>lfo_offset[i])& LFO_MASK;
+		switch(wave_settings) {
+			case 0:
+				lfo[i].get_value = lfo_get_triangle;
+				break;
+			case 1:
+				lfo[i].get_value = lfo_get_pulse;
+				break;
+			case 2:
+				lfo[i].get_value = lfo_get_sawtooth;
+				break;
+			default:
+				break;
+		}
+	}
 }
 
 void process_analog_in(void) {
