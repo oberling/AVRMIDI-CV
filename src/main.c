@@ -32,7 +32,7 @@
 // User Input defines
 #define ANALOG_READ_COUNTER (2)
 #define SHIFTIN_TRIGGER		(6)
-#define NUM_SHIFTIN_REG		(1)
+#define NUM_SHIFTIN_REG		(2)
 
 /*
  00000000
@@ -52,6 +52,29 @@
 #define LFO_ENABLE_BIT			(0x80)
 
 #define MIDI_CHANNEL_MASK		(0x0f)
+
+/*
+ 00000000
+ \\\\\\\\_LFO0_WAVE_BIT0 \_LFO0_WAVE_SETTINGS
+  \\\\\\\_LFO0_WAVE_BIT1 /
+   \\\\\\_LFO0_CLOCKSYNC - clocksync enable/disable for LFO0
+    \\\\\_LFO1_WAVE_BIT0 \_LFO1_WAVE_SETTINGS
+     \\\\_LFO1_WAVE_BIT1 /
+      \\\_LFO1_CLOCKSYNC - clocksync enable/disable for LFO1
+	   \\_reserved
+        \_reserved
+*/
+
+#define LFO0_WAVE_BIT0		(0x01)
+#define LFO0_WAVE_BIT1		(0x02)
+#define LFO0_CLOCKSYNC		(0x04)
+#define LFO1_WAVE_BIT0		(0x08)
+#define LFO1_WAVE_BIT1		(0x10)
+#define LFO1_CLOCKSYNC		(0x20)
+
+#define LFO_MASK	(0x03)
+#define LFO0_OFFSET	(0)
+#define LFO1_OFFSET	(3)
 
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
@@ -261,6 +284,10 @@ void process_user_input(void) {
 		sei();
 		old_midi_channel = midi_channel;
 	}
+	lfo[0].clock_sync = ISSET(input[1], LFO0_CLOCKSYNC);
+	lfo[1].clock_sync = ISSET(input[1], LFO1_CLOCKSYNC);
+	lfo[0].clock_mode = (input[1]>>LFO0_OFFSET)& LFO_MASK;
+	lfo[1].clock_mode = (input[1]>>LFO1_OFFSET)& LFO_MASK;
 }
 
 void process_analog_in(void) {
