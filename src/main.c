@@ -23,7 +23,8 @@
 #define GATE4		PC3
 #define GATE_OFFSET	(0)
 
-#define LFO_RATE_POTI_CHANNEL	(5)
+#define LFO_RATE_POTI0	(5)
+#define LFO_RATE_ANALOG_TOLERANCE	(5)
 
 #define NUM_PLAY_MODES	(2)
 #define POLYPHONIC_MODE	(0)
@@ -140,6 +141,10 @@ uint8_t shift_in_trigger_counter = SHIFTIN_TRIGGER;
 volatile bool get_shiftin = false;
 uint8_t analog_in_counter = ANALOG_READ_COUNTER;
 volatile bool get_analogin = false;
+uint16_t last_analog_values[2] = {
+	0,
+	0
+};
 
 volatile bool update_clock = false;
 
@@ -314,7 +319,19 @@ void process_user_input(void) {
 void process_analog_in(void) {
 	uint8_t i=0;
 	for(;i<NUM_LFO; i++) {
-		lfo[i].stepwidth = ((analog_read(LFO_RATE_POTI_CHANNEL))*4)+1;
+		uint16_t analog_value = analog_read(LFO_RATE_POTI0+i);
+		if(!(
+			 (analog_value < last_analog_values[i]+LFO_RATE_ANALOG_TOLERANCE) &&
+			 ((analog_value + LFO_RATE_ANALOG_TOLERANCE) > (last_analog_values[i]+LFO_RATE_ANALOG_TOLERANCE*2))
+		)) {
+			if(lfo[i].clock_sync) {
+				lfo[i].clock_mode = analog_value/64; // now we efficiently have 16 modes
+				lfo[i].clock_mode = (lfo[i].clock_mode > sizeof(clock_limit)-1) ? sizeof(clock_limit)-1 : lfo[i].clock_mode;
+				lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
+			} else {
+				lfo[i].stepwidth = (analog_value*4)+1;
+			}
+		}
 	}
 }
 
