@@ -82,6 +82,9 @@ const uint8_t lfo_offset[2] = {
 	3
 };
 
+#define SINGLE_BAR_COMPLETED	(96)
+#define EIGHT_BARS_COMPLETED	(768)
+
 /**
  * The whole trick about playing 4 notes at a time is the usage of a
  * peek_n-method on the note-stack: if a new (5th) note "overwrites" the oldest
@@ -117,8 +120,9 @@ uint32_t voltage[11] = {
 };
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
-// 384 - 4 bar; 96 - 1 bar or 1 full note; 48 - half note; ... 3 - 32th note
-uint16_t clock_limit[10] = {
+// 768 - 8 bars; 96 - 1 bar or 1 full note; 48 - half note; ... 3 - 32th note
+uint16_t clock_limit[11] = {
+	768,
 	384,
 	192,
 	96,
@@ -151,6 +155,9 @@ volatile bool update_clock = false;
 uint32_t midiclock_counter = 0;
 uint32_t current_midiclock_tick = 0;
 uint32_t last_midiclock_tick = 0;
+
+uint32_t last_single_bar_completed_tick = 0;
+uint32_t last_eight_bars_completed_tick = 0;
 
 uint8_t old_midi_channel = 4;
 uint8_t midi_channel = 4;
@@ -343,6 +350,12 @@ void update_clock_trigger(void) {
 		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 &&
 			(ISSET(program_options, LFO_ENABLE))) {
 			lfo[i].last_cycle_completed_tick = ticks;
+		}
+		if(midiclock_counter % SINGLE_BAR_COMPLETED == 0) {
+			last_single_bar_completed_tick = ticks;
+		}
+		if(midiclock_counter % EIGHT_BARS_COMPLETED == 0) {
+			last_eight_bars_completed_tick = ticks;
 		}
 	}
 }
