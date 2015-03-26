@@ -8,20 +8,20 @@ PB5		-	SCK
 PB6		-	XTAL	(16 MHz)
 PB7		-	XTAL	(16 MHz)
 
-PC0	ADC0	-		(GATE1)
-PC1	ADC1	-		(GATE2)
-PC2	ADC2	-		(GATE3)
-PC3	ADC3	-		(GATE4)
+PC0	ADC0	-		()
+PC1	ADC1	-		()
+PC2	ADC2	-		()
+PC3	ADC3	-		()
 PC4	ADC4	-		(POTI)
 PC5	ADC5	-		(POTI)
 PC6			-	RESET
 
 PD0		-	RXD		(MIDI-IN)
 PD1		-	TXD
-PD2		-			(TRIG1)
-PD3		-			(TRIG2)
-PD4		-			(TRIG3)
-PD5		-			(TRIG4)
+PD2		-			(GATE1)
+PD3		-			(GATE2)
+PD4		-			(GATE3)
+PD5		-			(GATE4)
 PD6		-			(CE_PIN)
 PD7		-			(PL_PIN)
 
