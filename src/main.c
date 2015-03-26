@@ -15,12 +15,12 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define GATE_PORT	PORTC
-#define GATE_DDR	DDRC
-#define GATE1		PC0
-#define GATE2		PC1
-#define GATE3		PC2
-#define GATE4		PC3
+#define GATE_PORT	PORTD
+#define GATE_DDR	DDRD
+#define GATE1		PD2
+#define GATE2		PC3
+#define GATE3		PD4
+#define GATE4		PD5
 #define GATE_OFFSET	(0)
 
 #define LFO_RATE_POTI0	(5)
