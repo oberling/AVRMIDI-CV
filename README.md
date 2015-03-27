@@ -9,9 +9,14 @@ It is not yet finished - no warranty at all what so ever :-) .
 implemented Features
 ====================
 
-* 4 Voice CV + 4 Gate + 4 Trigger outputs
-* Polyphonic mode
-* Unison mode
+* 4 Voice CV + 4 Gate
+ * + 4 TRIGGER in circuitry
+* switchable polyphonic/unison mode
+* either velocity per voice...
+* ... or 2 soft LFO (switchable) + 2 clock divided trigger outputs
+ * syncable to MIDI-Clock
+ * adjustable LFO/clock trigger rate
+ * 3 different waveshapes for the LFOs (triangle, pulse, sawtooth)
 
 Teststatus
 ==========
