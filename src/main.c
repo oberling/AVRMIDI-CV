@@ -10,6 +10,7 @@
 #include "polyphonic.h"
 #include "unison.h"
 #include "lfo.h"
+#include "clock_trigger.h"
 
 #include <string.h>
 #include <avr/io.h>
@@ -25,6 +26,8 @@
 
 #define LFO_RATE_POTI0	(5)
 #define LFO_RATE_ANALOG_TOLERANCE	(5)
+
+#define CLOCK_RATE_POTI0	(3)
 
 #define NUM_PLAY_MODES	(2)
 #define POLYPHONIC_MODE	(0)
@@ -44,13 +47,13 @@
      \\\\_reserved
       \\\_MODE_BIT0 - polyphonic unison mode
        \\_MODE_BIT1 - yet only reserved
-        \_LFO_ENABLE_BIT - lfo enable/velocity disable
+        \_LFO_CLOCK_ENABLE_BIT - lfo enable/velocity disable
 */
 
 // bits in the bytes to represent certain modes
 #define MODE_BIT0				(0x20)
 #define MODE_BIT1				(0x40)
-#define LFO_ENABLE_BIT			(0x80)
+#define LFO_CLOCK_ENABLE_BIT	(0x80)
 
 #define MIDI_CHANNEL_MASK		(0x0f)
 
@@ -177,16 +180,23 @@ uint16_t correction_counter = 0;
 lfo_t lfo[NUM_LFO];
 volatile bool must_update_lfo = false;
 
-#define LFO_ENABLE			(0x04)
+#define LFO_AND_CLOCK_OUT_ENABLE			(0x04)
 
 uint8_t program_options = 0x00;
 
+#define NUM_CLOCK_OUTPUTS	(2)
+#define CLOCK_TRIGGER_COUNTDOWN_INIT	(3)
+clock_trigger_t clock_output[NUM_CLOCK_OUTPUTS];
+volatile bool must_update_clock_output = false;
 
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
 void update_dac(void);
+void update_lfo(void);
+void update_clock_output(void);
 void process_user_input(void);
 void process_analog_in(void);
+void update_clock_trigger(void);
 void init_variables(void);
 void init_lfo(void);
 void init_io(void);
@@ -252,7 +262,7 @@ void update_dac(void) {
 		uint32_t voltage;
 		get_voltage(note, &voltage);
 		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
-		if(!ISSET(program_options, LFO_ENABLE)) {
+		if(!ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
 			// Send velocity
 			get_voltage(velocity, &voltage);
 			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
@@ -271,11 +281,24 @@ void update_dac(void) {
 }
 
 void update_lfo(void) {
-	if(ISSET(program_options, LFO_ENABLE)) {
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
 		uint8_t i=0;
 		for(;i<NUM_LFO;i++) {
 			uint32_t voltage = lfo[i].get_value(lfo+i);
 			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+		}
+	}
+}
+
+void update_clock_output(void) {
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
+		uint8_t i=0;
+		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+			uint32_t voltage = 0x0000;
+			if(clock_output[i].active_countdown != 0) {
+				voltage = 0xffff; //TODO: maybe adjustable clock trigger level instead?
+			}
+			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES+NUM_LFO, voltage);
 		}
 	}
 }
@@ -288,10 +311,10 @@ void process_user_input(void) {
 	} else {
 		playmode = UNISON_MODE;
 	}
-	if(ISSET(input[0], LFO_ENABLE_BIT)) {
-		SET(program_options, LFO_ENABLE);
+	if(ISSET(input[0], LFO_CLOCK_ENABLE_BIT)) {
+		SET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
 	} else {
-		UNSET(program_options, LFO_ENABLE);
+		UNSET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
 	}
 	midi_channel = (input[0] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
@@ -339,6 +362,10 @@ void process_analog_in(void) {
 				lfo[i].stepwidth = (analog_value*4)+1;
 			}
 		}
+		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+			uint16_t analog_value = analog_read(CLOCK_RATE_POTI0+i);
+			clock_output[i].mode = analog_value/64; // make it 16 possible modes
+		}
 	}
 }
 
@@ -346,16 +373,22 @@ void process_analog_in(void) {
 //       otherwise we may lose trigger-points
 void update_clock_trigger(void) {
 	uint8_t i;
-	for(i=0;i<NUM_LFO;i++) {
-		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 &&
-			(ISSET(program_options, LFO_ENABLE))) {
-			lfo[i].last_cycle_completed_tick = ticks;
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
+		for(i=0;i<NUM_LFO;i++) {
+			if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0) {
+				lfo[i].last_cycle_completed_tick = ticks;
+			}
+			if(midiclock_counter % SINGLE_BAR_COMPLETED == 0) {
+				last_single_bar_completed_tick = ticks;
+			}
+			if(midiclock_counter % EIGHT_BARS_COMPLETED == 0) {
+				last_eight_bars_completed_tick = ticks;
+			}
 		}
-		if(midiclock_counter % SINGLE_BAR_COMPLETED == 0) {
-			last_single_bar_completed_tick = ticks;
-		}
-		if(midiclock_counter % EIGHT_BARS_COMPLETED == 0) {
-			last_eight_bars_completed_tick = ticks;
+		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+			if((midiclock_counter % clock_limit[clock_output[i].mode]) == 0) {
+				clock_output[i].active_countdown = CLOCK_TRIGGER_COUNTDOWN_INIT;
+			}
 		}
 	}
 }
@@ -443,6 +476,13 @@ ISR(TIMER2_OVF_vect) {
 		}
 	}
 	must_update_lfo = true;
+
+	for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+		if(clock_output[i].active_countdown > 0) {
+			clock_output[i].active_countdown--;
+			must_update_clock_output = true;
+		}
+	}
 }
 
 int main(int argc, char** argv) {
@@ -480,6 +520,10 @@ int main(int argc, char** argv) {
 		if(must_update_lfo) {
 			must_update_lfo = false;
 			update_lfo();
+		}
+		if(must_update_clock_output) {
+			must_update_clock_output = false;
+			update_clock_output();
 		}
 	}
 	return 0;
