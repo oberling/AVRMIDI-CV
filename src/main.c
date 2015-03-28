@@ -62,19 +62,21 @@
  \\\\\\\\_LFO0_WAVE_BIT0 \_LFO0_WAVE_SETTINGS
   \\\\\\\_LFO0_WAVE_BIT1 /
    \\\\\\_LFO0_CLOCKSYNC - clocksync enable/disable for LFO0
-    \\\\\_LFO1_WAVE_BIT0 \_LFO1_WAVE_SETTINGS
-     \\\\_LFO1_WAVE_BIT1 /
-      \\\_LFO1_CLOCKSYNC - clocksync enable/disable for LFO1
-	   \\_reserved
-        \_reserved
+    \\\\\_LFO0_RETRIGGER_ON_NEW_NOTE - enable/disable retrigger of LFO0 on new note
+     \\\\_LFO1_WAVE_BIT0 \_LFO1_WAVE_SETTINGS
+      \\\_LFO1_WAVE_BIT1 /
+       \\_LFO1_CLOCKSYNC - clocksync enable/disable for LFO1
+        \_LFO1_RETRIGGER_ON_NEW_NOTE - enable/disable retrigger of LFO1 on new note
 */
 
 #define LFO0_WAVE_BIT0		(0x01)
 #define LFO0_WAVE_BIT1		(0x02)
 #define LFO0_CLOCKSYNC		(0x04)
-#define LFO1_WAVE_BIT0		(0x08)
-#define LFO1_WAVE_BIT1		(0x10)
-#define LFO1_CLOCKSYNC		(0x20)
+#define LFO0_RETRIGGER_ON_NEW_NOTE	(0x08)
+#define LFO1_WAVE_BIT0		(0x10)
+#define LFO1_WAVE_BIT1		(0x20)
+#define LFO1_CLOCKSYNC		(0x40)
+#define LFO1_RETRIGGER_ON_NEW_NOTE	(0x80)
 
 #define LFO_MASK	(0x03)
 #define LFO0_OFFSET	(0)
@@ -203,11 +205,16 @@ void init_io(void);
 
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
+	uint8_t i=0;
 	if(m->byte[0] == NOTE_ON(midi_channel)) {
 		mnote.note = m->byte[1];
 		mnote.velocity = m->byte[2];
 		if(mnote.velocity != 0x00) {
 			midinote_stack_push(&note_stack, mnote);
+			for(i=0;i<NUM_LFO;i++) {
+				if(lfo[i].retrigger_on_new_note)
+					lfo[i].position = 0;
+			}
 		} else {
 			midinote_stack_remove(&note_stack, m->byte[1]);
 		}
@@ -326,6 +333,8 @@ void process_user_input(void) {
 	}
 	lfo[0].clock_sync = ISSET(input[1], LFO0_CLOCKSYNC);
 	lfo[1].clock_sync = ISSET(input[1], LFO1_CLOCKSYNC);
+	lfo[0].retrigger_on_new_note = ISSET(input[1], LFO0_RETRIGGER_ON_NEW_NOTE);
+	lfo[1].retrigger_on_new_note = ISSET(input[1], LFO1_RETRIGGER_ON_NEW_NOTE);
 	uint8_t wave_settings;
 	uint8_t i= 0;
 	for(;i<NUM_LFO;i++) {
@@ -347,19 +356,21 @@ void process_user_input(void) {
 }
 
 void process_analog_in(void) {
-	uint8_t i=0;
-	for(;i<NUM_LFO; i++) {
-		uint16_t analog_value = analog_read(LFO_RATE_POTI0+i);
-		if(!(
-			 (analog_value < last_analog_values[i]+LFO_RATE_ANALOG_TOLERANCE) &&
-			 ((analog_value + LFO_RATE_ANALOG_TOLERANCE) > (last_analog_values[i]+LFO_RATE_ANALOG_TOLERANCE*2))
-		)) {
-			if(lfo[i].clock_sync) {
-				lfo[i].clock_mode = analog_value/64; // now we efficiently have 16 modes
-				lfo[i].clock_mode = (lfo[i].clock_mode > sizeof(clock_limit)-1) ? sizeof(clock_limit)-1 : lfo[i].clock_mode;
-				lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
-			} else {
-				lfo[i].stepwidth = (analog_value*4)+1;
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
+		uint8_t i=0;
+		for(;i<NUM_LFO; i++) {
+			uint16_t analog_value = analog_read(LFO_RATE_POTI0+i);
+			if(!(
+				 (analog_value < last_analog_values[i]+LFO_RATE_ANALOG_TOLERANCE) &&
+				 ((analog_value + LFO_RATE_ANALOG_TOLERANCE) > (last_analog_values[i]+LFO_RATE_ANALOG_TOLERANCE*2))
+			)) {
+				if(lfo[i].clock_sync) {
+					lfo[i].clock_mode = analog_value/64; // now we efficiently have 16 modes
+					lfo[i].clock_mode = (lfo[i].clock_mode > sizeof(clock_limit)-1) ? sizeof(clock_limit)-1 : lfo[i].clock_mode;
+					lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
+				} else {
+					lfo[i].stepwidth = (analog_value*4)+1;
+				}
 			}
 		}
 		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {

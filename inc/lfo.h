@@ -19,6 +19,7 @@ typedef uint16_t (*get_lfo_value_t)(lfo_t* lfo);
 
 struct lfo_t {
 	bool clock_sync;
+	bool retrigger_on_new_note;
 	uint16_t stepwidth;
 	uint32_t position;
 	uint32_t last_cycle_completed_tick;
