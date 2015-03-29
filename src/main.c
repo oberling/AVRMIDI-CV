@@ -19,7 +19,7 @@
 #define GATE_PORT	PORTD
 #define GATE_DDR	DDRD
 #define GATE1		PD2
-#define GATE2		PC3
+#define GATE2		PD3
 #define GATE3		PD4
 #define GATE4		PD5
 #define GATE_OFFSET	(0)
