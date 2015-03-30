@@ -84,7 +84,7 @@
 
 const uint8_t lfo_offset[2] = {
 	0,
-	3
+	4
 };
 
 #define SINGLE_BAR_COMPLETED	(96)
