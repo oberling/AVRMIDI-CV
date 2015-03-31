@@ -102,8 +102,9 @@ uint32_t voltage[11] = {
 };
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
-// 96 - full note; 48 - half note; ... 3 - 32th note
-uint16_t clock_limit[10] = {
+// 768 - 8 bars; 96 - 1 bar or 1 full note; 48 - half note; ... 3 - 32th note
+uint16_t clock_limit[11] = {
+	768,
 	384,
 	192,
 	96,
