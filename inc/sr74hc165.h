@@ -20,7 +20,7 @@
 #define SR_PL_CE_DDR	DDRD
 #endif
 
-void sr74hc165_init(uint8_t num_modules);
+void sr74hc165_init(void);
 
 void sr74hc165_read(unsigned char* output_buffer, uint8_t num_modules);
 

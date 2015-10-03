@@ -436,7 +436,7 @@ void init_io(void) {
 	TCCR2 = (1<<CS22)|(1<<CS21); // set prescaler to 256 -> 4,096ms (@16MHz Clock)
 	TIMSK |= (1<<TOIE0)|(1<<TOIE2); // enable overflow timer interrupt for timer 0 and 2
 	dac8568c_init();
-	sr74hc165_init(NUM_SHIFTIN_REG);
+	sr74hc165_init();
 	init_analogin();
 	uart_init();
 }

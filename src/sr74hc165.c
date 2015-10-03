@@ -1,6 +1,6 @@
 #include "sr74hc165.h"
 
-void sr74hc165_init(uint8_t num_modules) {
+void sr74hc165_init(void) {
 	init_spi();
 	SR_PL_CE_DDR |= (1<<SR_CE_PIN)|(1<<SR_PL_PIN); // set as output
 	SR_PL_CE_PORT |= (1<<SR_PL_PIN);
