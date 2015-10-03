@@ -8,8 +8,10 @@ void sr74hc165_init(void) {
 }
 
 void sr74hc165_read(unsigned char* output_buffer, uint8_t num_modules) {
+	// change to right clock phase for this chip
+	// ATTENTION: this is only save if this method cannot be interrupted by another method that might overwrite SPCR again!
+	SPCR &= ~(1<<CPHA);
 	// load inputs to shift register
-	SPI_PORT |= (1<<SPI_SCK);
 	SR_PL_CE_PORT &= ~(1<<SR_PL_PIN);
 	__asm("nop\n\t");
 	__asm("nop\n\t"); // ... just to make shure ...

@@ -71,6 +71,9 @@ void dac8568c_disable_internal_ref(void) {
 }
 
 void __dac8568c_output_bytes(dac_command_t command, bool ldacswitch){
+	// change to right clock phase for this chip
+	// ATTENTION: this is only save if this method cannot be interrupted by another method that might overwrite SPCR again!
+	SPCR |= (1<<CPHA);
 	DAC_PORT &= ~(1<<DAC_CS_PIN);
 	// wait till that pin is really set
 	__asm("nop\n\t");
