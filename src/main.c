@@ -313,10 +313,14 @@ void update_clock_output(void) {
 void process_user_input(void) {
 	uint8_t input[NUM_SHIFTIN_REG];
 	sr74hc165_read(input, NUM_SHIFTIN_REG);
+	uint8_t old_playmode = playmode;
 	if(ISSET(input[0], MODE_BIT0)) {
 		playmode = POLYPHONIC_MODE;
 	} else {
 		playmode = UNISON_MODE;
+	}
+	if(playmode != old_playmode) {
+		mode[playmode].init();
 	}
 	if(ISSET(input[0], LFO_CLOCK_ENABLE_BIT)) {
 		SET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
@@ -410,7 +414,9 @@ void init_variables(void) {
 	memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 	memset(mode, 0, sizeof(playmode_t)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
+	mode[POLYPHONIC_MODE].init = init_polyphonic;
 	mode[UNISON_MODE].update_notes = update_notes_unison;
+	mode[UNISON_MODE].init = init_unison;
 }
 
 void init_lfo(void) {
@@ -501,6 +507,7 @@ int main(int argc, char** argv) {
 	init_variables();
 	init_lfo();
 	init_io();
+	mode[playmode].init();
 	sei();
 	while(1) {
 		// handle midibuffer - update playing_notes accordingly

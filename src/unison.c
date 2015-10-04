@@ -3,6 +3,9 @@
 #include "midinote_stack.h"
 #include "unison.h"
 
+void __init_unison(void) {
+}
+
 void __update_notes_unison(midinote_stack_t* note_stack, playingnote_t* playing_notes) {
 	midinote_t* it;
 	uint8_t num_notes = 0;
@@ -24,3 +27,4 @@ void __update_notes_unison(midinote_stack_t* note_stack, playingnote_t* playing_
 }
 
 update_notefunction_t update_notes_unison = &__update_notes_unison;
+init_playmodefunction_t init_unison = &__init_unison;

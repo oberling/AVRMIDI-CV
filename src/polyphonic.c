@@ -44,8 +44,9 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* play
 		}
 		if(!found) {
 			for(j=0; j<NUM_PLAY_NOTES; j++) {
-				if((playing_notes+j)->midinote.note == 0) {
-					(playing_notes+j)->midinote = *(it+i);
+				if((playing_notes+lru[j])->midinote.note == 0) {
+					(playing_notes+lru[j])->midinote = *(it+i);
+					lru_cache_use(lru, j, NUM_PLAY_NOTES);
 					break;
 				}
 			}
@@ -54,3 +55,4 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* play
 }
 
 update_notefunction_t update_notes_polyphonic = &__update_notes_polyphonic;
+init_playmodefunction_t init_polyphonic = &__init_polyphonic;
