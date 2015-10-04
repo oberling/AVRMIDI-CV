@@ -22,7 +22,7 @@
 #define GATE2		PD3
 #define GATE3		PD4
 #define GATE4		PD5
-#define GATE_OFFSET	(0)
+#define GATE_OFFSET	(2)
 
 #define LFO_RATE_POTI0	(5)
 #define LFO_RATE_ANALOG_TOLERANCE	(5)
