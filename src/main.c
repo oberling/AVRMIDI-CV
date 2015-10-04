@@ -24,10 +24,10 @@
 #define GATE4		PD5
 #define GATE_OFFSET	(2)
 
-#define LFO_RATE_POTI0	(5)
+#define LFO_RATE_POTI0	(4)
 #define LFO_RATE_ANALOG_TOLERANCE	(5)
 
-#define CLOCK_RATE_POTI0	(3)
+#define CLOCK_RATE_POTI0	(2)
 
 #define NUM_PLAY_MODES	(2)
 #define POLYPHONIC_MODE	(0)

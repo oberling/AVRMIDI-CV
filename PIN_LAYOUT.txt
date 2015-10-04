@@ -10,10 +10,10 @@ PB7		-	XTAL	(16 MHz)
 
 PC0	ADC0	-		()
 PC1	ADC1	-		()
-PC2	ADC2	-		()
-PC3	ADC3	-		()
-PC4	ADC4	-		(POTI)
-PC5	ADC5	-		(POTI)
+PC2	ADC2	-		(POTI) - used for CLOCK DIVISION RATE 1
+PC3	ADC3	-		(POTI) - used for CLOCK DIVISION RATE 2
+PC4	ADC4	-		(POTI) - used for LFO RATE 1
+PC5	ADC5	-		(POTI) - used for LFO RATE 2
 PC6			-	RESET
 
 PD0		-	RXD		(MIDI-IN)
