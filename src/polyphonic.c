@@ -8,6 +8,14 @@
 #error "please include some -DNUM_PLAY_NOTES in your Makefile describing how many notes can be played simultanously!"
 #endif
 
+#include "lru_cache.h"
+
+lru_cache lru[NUM_PLAY_NOTES];
+
+void __init_polyphonic(void) {
+	lru_cache_init(lru, NUM_PLAY_NOTES);
+}
+
 void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* playing_notes) {
 	// worst: O(n) = 3n² // with n = NUM_PLAY_NOTES -> 3*4²*4 CMDs = 192 CMDs
 	// at 16 MHz -> 12µs (at 5 CMDs per iteration (240CMDs): 15µs)
