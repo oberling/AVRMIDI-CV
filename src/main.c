@@ -111,10 +111,11 @@ const uint8_t lfo_offset[2] = {
 // if we output 5V from the dac for the 127th semitone
 // - that makes a factor of amplification of 2.1166666)
 uint32_t voltage[11] = {
-	6192, // calculated: ((2^16)/127)*0*12
-	12385,// calculated: ((2^16)/127)*1*12
-	18577,// calculated: ((2^16)/127)*2*12
+	6192, // calculated: ((2^16)/127)*1*12
+	12385,// calculated: ((2^16)/127)*2*12
+	18577,// calculated: ((2^16)/127)*3*12
 	24769,// ... u get it :-)
+		  // one semitone is ((2^16)/127) round about 516
 	30962,
 	37154,
 	43347,
