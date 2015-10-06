@@ -19,7 +19,7 @@ void __init_polyphonic(void) {
 void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* playing_notes) {
 	// worst: O(n) = 3n² // with n = NUM_PLAY_NOTES -> 3*4²*4 CMDs = 192 CMDs
 	// at 16 MHz -> 12µs (at 5 CMDs per iteration (240CMDs): 15µs)
-	// +3µs per command on deepes loop layer
+	// +3µs per command on deepest loop layer
 	midinote_t* it;
 	uint8_t actual_played_notes = 0;
 	uint8_t i = 0;
