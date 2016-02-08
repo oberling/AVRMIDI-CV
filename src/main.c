@@ -125,6 +125,8 @@ uint32_t voltage[11] = {
 	68116
 };
 
+uint16_t pitchbend = 0x2000; // middle_position
+
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
 // 768 - 8 bars; 96 - 1 bar or 1 full note; 48 - half note; ... 3 - 32th note
 uint16_t clock_limit[11] = {
@@ -230,6 +232,18 @@ bool midi_handler_function(midimessage_t* m) {
 		return true;
 	} else if (m->byte[0] == NOTE_OFF(midi_channel)) {
 		midinote_stack_remove(&note_stack, m->byte[1]);
+		return true;
+	} else if (m->byte[0] == PITCH_BEND(midi_channel)) {
+		// TODO: implement some logic to really bend the pitch of the stack notes
+		pitchbend = (m->byte[2]<<7) | m->byte[1];
+		return true;
+	} else if (m->byte[0] == CONTROL_CHANGE(midi_channel)) {
+		if(ALL_NOTES_OFF(m->byte[2])) {
+			midinote_stack_init(&note_stack);
+		} else if (m->byte[2] == MOD_WHEEL) {
+			//TODO: do something special here(?)
+			return true;
+		}
 		return true;
 	}
 	switch(m->byte[0]) {
@@ -440,7 +454,7 @@ void init_lfo(void) {
 
 void init_io(void) {
 	// setting gate and trigger pins as output pins
-	GATE_DDR = (1<<GATE1)|(1<<GATE2)|(1<<GATE3)|(1<<GATE4);
+	GATE_DDR |= (1<<GATE1)|(1<<GATE2)|(1<<GATE3)|(1<<GATE4);
 
 	// setting trigger timer
 	TCCR0 = (1<<CS02)|(1<<CS00); // set prescaler to 1024 -> ~16ms (@16MHz Clock)
