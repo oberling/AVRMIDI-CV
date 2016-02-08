@@ -5,7 +5,11 @@ void uart_init(void) {
 	UBRRL = UBRR_VAL & 0xFF;
 	
 	UCSRB |= (1<<TXEN);							// enable UART TX
+#if defined(__AVR_ATmega8__)
 	UCSRC  = (1<<URSEL)|(1<<UCSZ1)|(1<<UCSZ0);  // asynchronous 8N1
+#elif defined(__AVR_ATtiny2313__)
+	UCSRC  = (1<<UCSZ1)|(1<<UCSZ0);				// asynchronous 8N1
+#endif
 	UCSRB |= (1<<RXEN);							// enable UART RX
 	UCSRB |= (1<<RXCIE);
 }
