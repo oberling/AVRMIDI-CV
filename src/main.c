@@ -349,6 +349,7 @@ void process_user_input(void) {
 		SET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
 	} else {
 		UNSET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
+		must_update_dac = true;
 	}
 	midi_channel = (input[0] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
