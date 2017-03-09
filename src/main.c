@@ -539,7 +539,9 @@ int main(int argc, char** argv) {
 	init_io();
 	mode[playmode].init();
 	sei();
+//	uint16_t j=0;
 	while(1) {
+		// <NORMAL FUNCTION>
 		// handle midibuffer - update playing_notes accordingly
 		if(midibuffer_tick(&midi_buffer)) {
 			mode[playmode].update_notes(&note_stack, playing_notes);
@@ -573,6 +575,33 @@ int main(int argc, char** argv) {
 			must_update_clock_output = false;
 			update_clock_output();
 		}
+		// </NORMAL FUNCTION>
+
+//		// <RAMP UP TEST_CASE> - use to verify all DAC-channels work
+//		cli();
+//		uint8_t i=0;
+//		for(i=0; i<8; i++) {
+//			dac8568c_write(DAC_WRITE_UPDATE_N, i, j);
+//		}
+//		j++;
+//		for(i=0; i<100; i++) {
+//			__asm("nop\n");
+//		}
+//		// </RAMP UP TEST_CASE>
+
+//		// <FIXED VOLTAGES TEST_CASE> - use for calibration of DAC voltage doubling circuit
+//		cli();
+//		uint8_t i=0;
+//		for(i=0; i<8; i++) {
+//			dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage[j]);
+//		}
+//		j++;
+//		j%=10;
+//		uint32_t k=0;
+//		for(; k<400000000; k++) {
+//			__asm("nop\n");
+//		}
+//		// </FIXED VOLTAGES TEST_CASE>
 	}
 	return 0;
 }
