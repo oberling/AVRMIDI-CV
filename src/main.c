@@ -368,13 +368,13 @@ void process_user_input(void) {
 	for(;i<NUM_LFO;i++) {
 		wave_settings = (input[1]>>lfo_offset[i])& LFO_MASK;
 		switch(wave_settings) {
-			case 0:
+			case 1:
 				lfo[i].get_value = lfo_get_triangle;
 				break;
-			case 1:
+			case 2:
 				lfo[i].get_value = lfo_get_pulse;
 				break;
-			case 2:
+			case 3:
 				lfo[i].get_value = lfo_get_sawtooth;
 				break;
 			default:
