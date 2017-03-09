@@ -397,7 +397,7 @@ void process_analog_in(void) {
 					lfo[i].clock_mode = (lfo[i].clock_mode > sizeof(clock_limit)-1) ? sizeof(clock_limit)-1 : lfo[i].clock_mode;
 					lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
 				} else {
-					lfo[i].stepwidth = (analog_value*4)+1;
+					lfo[i].stepwidth = ((analog_value+1)*4);
 				}
 			}
 		}
