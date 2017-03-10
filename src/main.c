@@ -264,7 +264,6 @@ bool midi_handler_function(midimessage_t* m) {
 		case CLOCK_START:
 		case CLOCK_STOP:
 			midiclock_counter = 0;
-			last_midiclock_tick = 0;
 			cli();
 			last_midiclock_tick = current_midiclock_tick = 0;
 			sei();
