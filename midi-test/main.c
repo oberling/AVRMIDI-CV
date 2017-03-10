@@ -67,11 +67,11 @@ void testit(void) {
 void testNote(uint8_t note, uint8_t velocity) {
 	PmEvent event;
 	event.timestamp = 0;
-	event.message = Pm_Message(0x94, note, velocity);
+	event.message = Pm_Message(0x97, note, velocity);
 	Pm_Write(midiOutputStream, &event, 1);
 	printf("check if it playes note %d (enter to continue)", note);
 	fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
-	event.message = Pm_Message(0x94, note, 0x00);
+	event.message = Pm_Message(0x97, note, 0x00);
 	Pm_Write(midiOutputStream, &event, 1);
 	printf("now the note should be off\n");
 }
@@ -101,13 +101,13 @@ void testSingleNotes(void) {
 void testHangingNote(void) {
 	PmEvent event;
 	event.timestamp = 0;
-	event.message = Pm_Message(0x94, 120, 77);
+	event.message = Pm_Message(0x97, 120, 77);
 	Pm_Write(midiOutputStream, &event, 1);
 	printf("check if it playes a note (enter to continue)");
 	fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
 	printf("now have same note again without note-off in between\n");
 	Pm_Write(midiOutputStream, &event, 1);
-	event.message = Pm_Message(0x94, 120, 0x00);
+	event.message = Pm_Message(0x97, 120, 0x00);
 	Pm_Write(midiOutputStream, &event, 1);
 	printf("now the note should be off\n");
 }
@@ -117,13 +117,13 @@ void testPolyphonic(void) {
 	uint8_t i=0;
 	for(;i<5;i++) {
 		event[i].timestamp = 0;
-		event[i].message = Pm_Message(0x94, (0x30+(i*5)), (0x20+(i*10)));
+		event[i].message = Pm_Message(0x97, (0x30+(i*5)), (0x20+(i*10)));
 		Pm_Write(midiOutputStream, event+i, 1);
 	}
 	printf("check if it playes 4 notes (enter to continue)");
 	fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
 	for(i=0; i<5; i++) {
-		event[i].message = Pm_Message(0x94, (0x30+(i*5)), (0x00));
+		event[i].message = Pm_Message(0x97, (0x30+(i*5)), (0x00));
 		printf("one note less (enter to continue)");
 		fgets(readLineBuffer, sizeof(readLineBuffer), stdin);
 		Pm_Write(midiOutputStream, event+i, 1);
