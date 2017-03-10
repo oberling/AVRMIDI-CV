@@ -24,6 +24,12 @@
 #define GATE4		PD5
 #define GATE_OFFSET	(2)
 
+#define BUTTON_LED_PORT	PORTC
+#define BUTTON_LED_DDR	DDRC
+#define BUTTON			PC0
+#define LED				PC1
+#define BUTTON_PIN		PINC
+
 #define LFO_RATE_POTI0	(4)
 #define LFO_RATE_ANALOG_TOLERANCE	(5)
 
@@ -381,6 +387,13 @@ void process_user_input(void) {
 				break;
 		}
 	}
+
+	// if button not pressed - light up LED
+	if( (BUTTON_PIN & (1<<BUTTON)) ) {
+		BUTTON_LED_PORT |= (1<<LED);
+	} else { // otherwise turn it off
+		BUTTON_LED_PORT &= ~(1<<LED);
+	}
 }
 
 void process_analog_in(void) {
@@ -469,6 +482,10 @@ void init_io(void) {
 	sr74hc165_init();
 	init_analogin();
 	uart_init();
+
+	BUTTON_LED_DDR &= ~(1<<BUTTON); // input button
+	BUTTON_LED_DDR |= (1<<LED);  // status LED
+	BUTTON_LED_PORT |= (1<<BUTTON); // activate internal pullup
 }
 
 ISR(USART_RXC_vect) {
