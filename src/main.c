@@ -297,7 +297,9 @@ void update_dac(void) {
 		vel_t velocity = playing_notes[i].midinote.velocity;
 		uint32_t voltage;
 		get_voltage(note, &voltage);
-		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
+		if(voltage != 0x00) { // do not reset the oscillators pitch
+			dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
+		}
 		if(!ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
 			// Send velocity
 			get_voltage(velocity, &voltage);
