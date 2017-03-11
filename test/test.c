@@ -132,8 +132,9 @@ volatile bool get_analogin = false;
 volatile bool update_clock = false;
 
 uint32_t midiclock_counter = 0;
-uint32_t current_midiclock_tick = 0;
-uint32_t last_midiclock_tick = 0;
+// avoid division by zero in clock synced lfo mode
+uint32_t current_midiclock_tick = 2;
+uint32_t last_midiclock_tick = 1;
 
 uint8_t old_midi_channel = 7;
 uint8_t midi_channel = 7;
@@ -223,9 +224,10 @@ bool midi_handler_function(midimessage_t* m) {
 		case CLOCK_START:
 		case CLOCK_STOP:
 			midiclock_counter = 0;
-			last_midiclock_tick = 0;
 			cli();
-			last_midiclock_tick = current_midiclock_tick = 0;
+			// avoid division by zero in clock synced lfo mode
+			last_midiclock_tick = 1;
+			current_midiclock_tick = 2;
 			sei();
 			break;
 		case CLOCK_CONTINUE:
@@ -464,15 +466,12 @@ void timer2_overflow_function(void) {
 	ticks++;
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
-		lfo[i].position += lfo[i].stepwidth;
-		if(!lfo[i].clock_sync) {
-			lfo[i].position %= LFO_TABLE_LENGTH;
+		if(lfo[i].clock_sync) {
+			lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
+			lfo[i].position = (ticks - lfo[i].last_cycle_completed_tick) * lfo[i].stepwidth;
 		} else {
-			// avoid division by 0
-			if(current_midiclock_tick != 0) {
-				lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
-				lfo[i].position = (ticks - lfo[i].last_cycle_completed_tick) * lfo[i].stepwidth;
-			}
+			lfo[i].position += lfo[i].stepwidth;
+			lfo[i].position %= LFO_TABLE_LENGTH;
 		}
 	}
 	must_update_lfo = true;

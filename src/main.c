@@ -163,8 +163,9 @@ volatile bool get_analogin = false;
 volatile bool update_clock = false;
 
 uint32_t midiclock_counter = 0;
-uint32_t current_midiclock_tick = 0;
-uint32_t last_midiclock_tick = 0;
+// avoid division by zero in clock synced lfo mode
+uint32_t current_midiclock_tick = 2;
+uint32_t last_midiclock_tick = 1;
 
 uint32_t last_single_bar_completed_tick = 0;
 uint32_t last_eight_bars_completed_tick = 0;
@@ -261,7 +262,9 @@ bool midi_handler_function(midimessage_t* m) {
 		case CLOCK_STOP:
 			midiclock_counter = 0;
 			cli();
-			last_midiclock_tick = current_midiclock_tick = 0;
+			// avoid division by zero in clock synced lfo mode
+			last_midiclock_tick = 1;
+			current_midiclock_tick = 2;
 			sei();
 			break;
 		case CLOCK_CONTINUE:
