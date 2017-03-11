@@ -423,6 +423,7 @@ void update_clock_trigger(void) {
 		for(i=0;i<NUM_LFO;i++) {
 			if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0) {
 				lfo[i].last_cycle_completed_tick = ticks;
+				lfo[i].position = 0; // reset lfo position to always stay in sync with the clock
 			}
 		}
 		if(midiclock_counter % SINGLE_BAR_COMPLETED == 0) {
@@ -523,16 +524,14 @@ ISR(TIMER2_OVF_vect) {
 	ticks++;
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
-		lfo[i].position += lfo[i].stepwidth;
-		if(!lfo[i].clock_sync) {
-			lfo[i].position %= LFO_TABLE_LENGTH;
+		if(lfo[i].clock_sync) {
+			// recalculate stepwidth everytime to even out division errors
+			lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
+			lfo[i].position += lfo[i].stepwidth;
 		} else {
-			// avoid division by 0
-			if(current_midiclock_tick != 0) {
-				lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
-				lfo[i].position = (ticks - lfo[i].last_cycle_completed_tick) * lfo[i].stepwidth;
-			}
+			lfo[i].position += lfo[i].stepwidth;
 		}
+		lfo[i].position %= LFO_TABLE_LENGTH;
 	}
 	must_update_lfo = true;
 
