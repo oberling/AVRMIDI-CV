@@ -174,8 +174,8 @@ uint32_t last_midiclock_tick = 0;
 uint32_t last_single_bar_completed_tick = 0;
 uint32_t last_eight_bars_completed_tick = 0;
 
-uint8_t old_midi_channel = 4;
-uint8_t midi_channel = 4;
+uint8_t old_midi_channel = 7;
+uint8_t midi_channel = 7;
 
 uint32_t ticks = 0;
 uint8_t ticks_correction = 0;
