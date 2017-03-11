@@ -134,8 +134,8 @@ uint32_t midiclock_counter = 0;
 uint32_t current_midiclock_tick = 0;
 uint32_t last_midiclock_tick = 0;
 
-uint8_t old_midi_channel = 4;
-uint8_t midi_channel = 4;
+uint8_t old_midi_channel = 7;
+uint8_t midi_channel = 7;
 
 uint32_t ticks = 0;
 uint8_t ticks_correction = 0;
@@ -254,7 +254,9 @@ void update_dac(void) {
 		vel_t velocity = playing_notes[i].midinote.velocity;
 		uint32_t voltage;
 		get_voltage(note, &voltage);
-		dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
+		if(voltage != 0x00) {
+			dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
+		}
 		if(!ISSET(program_options, LFO_ENABLE)) {
 			// Send velocity
 			get_voltage(velocity, &voltage);
@@ -286,10 +288,14 @@ void update_lfo(void) {
 void process_user_input(void) {
 	uint8_t input[NUM_SHIFTIN_REG];
 	sr74hc165_read(input, NUM_SHIFTIN_REG);
+	uint8_t old_playmode = playmode;
 	if(ISSET(input[0], MODE_BIT0)) {
 		playmode = POLYPHONIC_MODE;
 	} else {
 		playmode = UNISON_MODE;
+	}
+	if(playmode != old_playmode) {
+		mode[playmode].init();
 	}
 	if(ISSET(input[0], LFO_ENABLE_BIT)) {
 		SET(program_options, LFO_ENABLE);
@@ -352,7 +358,9 @@ void init_variables(void) {
 	memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 	memset(mode, 0, sizeof(playmode_t)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
+	mode[POLYPHONIC_MODE].init = init_polyphonic;
 	mode[UNISON_MODE].update_notes = update_notes_unison;
+	mode[UNISON_MODE].init = init_unison;
 }
 
 void init_lfo(void) {
@@ -371,17 +379,17 @@ void init_io(void) {
 
 void init_notes(void) {
 	a.byte[0] = NOTE_ON(midi_channel);
-	a.byte[1] = 0xff;
-	a.byte[2] = 0xdd;
+	a.byte[1] = 0x6f;
+	a.byte[2] = 0x5d;
 	b.byte[0] = NOTE_ON(midi_channel);
-	b.byte[1] = 0xee;
-	b.byte[2] = 0xcc;
+	b.byte[1] = 0x6e;
+	b.byte[2] = 0x4c;
 	c.byte[0] = NOTE_ON(midi_channel);
-	c.byte[1] = 0xbb;
-	c.byte[2] = 0xaa;
+	c.byte[1] = 0x3b;
+	c.byte[2] = 0x2a;
 	d.byte[0] = NOTE_ON(midi_channel);
-	d.byte[1] = 0x99;
-	d.byte[2] = 0x88;
+	d.byte[1] = 0x19;
+	d.byte[2] = 0x08;
 	e.byte[0] = NOTE_ON(midi_channel);
 	e.byte[1] = 0x77;
 	e.byte[2] = 0x66;
@@ -533,15 +541,15 @@ int main(int argc, char** argv) {
 		uint8_t num_notes = 0;
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
 		assert(num_notes == 1);
-		assert(it->note == 0xff);
-		assert(it->velocity == 0xdd);
+		assert(it->note == 0x6f);
+		assert(it->velocity == 0x5d);
 	}
 	printf(" success\n");
 	printf("checking note handling");
 	{
 		assert(playing_notes[0].midinote.note == 0x00);
 		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(playing_notes[0].midinote.note == 0xff);
+		assert(playing_notes[0].midinote.note == 0x6f);
 	}
 	printf(" success\n");
 	printf("testing peek does not pop");
@@ -549,7 +557,7 @@ int main(int argc, char** argv) {
 		memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 		assert(playing_notes[0].midinote.note == 0x00 && playing_notes[0].midinote.velocity == 0x00);
 		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(playing_notes[0].midinote.note == 0xff && playing_notes[0].midinote.velocity == 0xdd);
+		assert(playing_notes[0].midinote.note == 0x6f && playing_notes[0].midinote.velocity == 0x5d);
 	}
 	printf(" success\n");
 	printf("testing NOTE_OFF-Handling");
@@ -659,6 +667,7 @@ int main(int argc, char** argv) {
 		printf("\ttesting playnotes in polyphonic mode");
 		{
 			playmode = POLYPHONIC_MODE;
+			mode[playmode].init();
 			mode[playmode].update_notes(&note_stack, playing_notes);
 			assert(playing_notes[0].midinote.note == b.byte[1]);
 			assert(playing_notes[1].midinote.note == c.byte[1]);
@@ -681,6 +690,7 @@ int main(int argc, char** argv) {
 		printf("\ttesting playnotes in polyphonic mode now again");
 		{
 			playmode = POLYPHONIC_MODE;
+			mode[playmode].init();
 			mode[playmode].update_notes(&note_stack, playing_notes);
 			assert(playing_notes[0].midinote.note == a.byte[1]);
 			assert(playing_notes[1].midinote.note == c.byte[1]);
@@ -726,6 +736,7 @@ int main(int argc, char** argv) {
 		printf("\tinitializing everything");
 		init_variables();
 		playmode = UNISON_MODE;
+		mode[playmode].init();
 		a.byte[0] = NOTE_ON(midi_channel);
 		b.byte[0] = NOTE_ON(midi_channel);
 		c.byte[0] = NOTE_ON(midi_channel);
@@ -832,6 +843,7 @@ int main(int argc, char** argv) {
 		init_notes();
 		prepare_four_notes_on_stack();
 		playmode = POLYPHONIC_MODE;
+		mode[playmode].init();
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == a.byte[1]);
 		assert(playing_notes[1].midinote.note == b.byte[1]);
@@ -883,6 +895,8 @@ int main(int argc, char** argv) {
 	printf("testing some hardcoded note ");
 	{
 		init_variables();
+		playmode = POLYPHONIC_MODE;
+		mode[playmode].init();
 		testnote_t z;
 		z.byte[0] = NOTE_ON(midi_channel);
 		z.byte[1] = 0x3c;
@@ -904,8 +918,10 @@ int main(int argc, char** argv) {
 	printf("testing velocity 0 instead of NOTE_OFF");
 	{
 		init_variables();
+		playmode = POLYPHONIC_MODE;
+		mode[playmode].init();
 		testnote_t z;
-		z.byte[0] = 0x94;
+		z.byte[0] = NOTE_ON(midi_channel);
 		z.byte[1] = 0x3f;
 		z.byte[2] = 0x77;
 		insert_midibuffer_test(z);
@@ -924,6 +940,7 @@ int main(int argc, char** argv) {
 		init_variables();
 		init_notes();
 		playmode = POLYPHONIC_MODE;
+		mode[playmode].init();
 		insert_midibuffer_test(a);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		insert_midibuffer_test(a);
@@ -946,6 +963,8 @@ int main(int argc, char** argv) {
 	printf("test switching MIDI CHANNEL");
 	{
 		init_variables();
+		playmode = POLYPHONIC_MODE;
+		mode[playmode].init();
 		init_notes();
 		init_input_buffer();
 		insert_midibuffer_test(a);
@@ -964,10 +983,12 @@ int main(int argc, char** argv) {
 		a.byte[0] = NOTE_ON(midi_channel);
 		insert_midibuffer_test(a);
 		assert(midibuffer_tick(&midi_buffer) == true);
+		playmode = POLYPHONIC_MODE;
+		mode[playmode].init();
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == a.byte[1]);
-		// reset to channel 4 - not to confuse the following tests
-		input_buffer[0] = (input_buffer[0] & 0xf0) | 0x04;
+		// reset to channel 7 - not to confuse the following tests
+		input_buffer[0] = (input_buffer[0] & 0xf0) | 0x07;
 		process_user_input();
 	}
 	printf(" success\n");

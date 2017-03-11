@@ -7,6 +7,7 @@ INCDIR = ../inc/
 SOURCES = ../src/lfo.c \
 	  ../src/midibuffer.c \
 	  ../src/midinote_stack.c \
+	  ../src/lru_cache.c \
 	  ../src/polyphonic.c \
 	  ../src/ringbuffer.c \
 	  ../src/unison.c \
