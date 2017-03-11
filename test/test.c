@@ -10,6 +10,7 @@
 #include "polyphonic.h"
 #include "unison.h"
 #include "lfo.h"
+#include "clock_trigger.h"
 
 #define DAC_WRITE_UPDATE_N			(3)
 
@@ -21,7 +22,15 @@
 #define GATE4		PC3
 #define GATE_OFFSET	(0)
 
-#define LFO_RATE_POTI_CHANNEL	(5)
+#define BUTTON_LED_PORT	button_led_port
+#define BUTTON_LED_DDR	DDRC
+#define BUTTON			(0)
+#define LED				(1)
+#define BUTTON_PIN		button_pin
+
+#define LFO_RATE_POTI0	(4)
+
+#define CLOCK_RATE_POTI0	(2)
 
 #define NUM_PLAY_MODES	(2)
 #define POLYPHONIC_MODE	(0)
@@ -41,13 +50,13 @@
      \\\\_reserved
       \\\_MODE_BIT0 - polyphonic unison mode
        \\_MODE_BIT1 - yet only reserved
-        \_LFO_ENABLE_BIT - lfo enable/velocity disable
+        \_LFO_CLOCK_ENABLE_BIT - lfo enable/velocity disable
 */
 
 // bits in the bytes to represent certain modes
 #define MODE_BIT0				(0x20)
 #define MODE_BIT1				(0x40)
-#define LFO_ENABLE_BIT			(0x80)
+#define LFO_CLOCK_ENABLE_BIT	(0x80)
 
 #define MIDI_CHANNEL_MASK		(0x0f)
 
@@ -56,19 +65,21 @@
  \\\\\\\\_LFO0_WAVE_BIT0 \_LFO0_WAVE_SETTINGS
   \\\\\\\_LFO0_WAVE_BIT1 /
    \\\\\\_LFO0_CLOCKSYNC - clocksync enable/disable for LFO0
-    \\\\\_LFO1_WAVE_BIT0 \_LFO1_WAVE_SETTINGS
-     \\\\_LFO1_WAVE_BIT1 /
-      \\\_LFO1_CLOCKSYNC - clocksync enable/disable for LFO1
-	   \\_reserved
-        \_reserved
+    \\\\\_LFO0_RETRIGGER_ON_NEW_NOTE - enable/disable retrigger of LFO0 on new note
+     \\\\_LFO1_WAVE_BIT0 \_LFO1_WAVE_SETTINGS
+      \\\_LFO1_WAVE_BIT1 /
+       \\_LFO1_CLOCKSYNC - clocksync enable/disable for LFO1
+        \_LFO1_RETRIGGER_ON_NEW_NOTE - enable/disable retrigger of LFO1 on new note
 */
 
 #define LFO0_WAVE_BIT0		(0x01)
 #define LFO0_WAVE_BIT1		(0x02)
 #define LFO0_CLOCKSYNC		(0x04)
-#define LFO1_WAVE_BIT0		(0x08)
-#define LFO1_WAVE_BIT1		(0x10)
-#define LFO1_CLOCKSYNC		(0x20)
+#define LFO0_RETRIGGER_ON_NEW_NOTE	(0x08)
+#define LFO1_WAVE_BIT0		(0x10)
+#define LFO1_WAVE_BIT1		(0x20)
+#define LFO1_CLOCKSYNC		(0x40)
+#define LFO1_RETRIGGER_ON_NEW_NOTE	(0x80)
 
 #define LFO_MASK	(0x03)
 #define LFO0_OFFSET	(0)
@@ -76,8 +87,23 @@
 
 const uint8_t lfo_offset[2] = {
 	0,
-	3
+	4
 };
+
+#define SINGLE_BAR_COMPLETED	(96)
+#define EIGHT_BARS_COMPLETED	(768)
+
+/**
+ * The whole trick about playing 4 notes at a time is the usage of a
+ * peek_n-method on the note-stack: if a new (5th) note "overwrites" the oldest
+ * playing note it is not specifically "overwritten" - it just doesn't
+ * peek anymore from the stack - but now the new note does. As it is not peeked
+ * anymore it gets erased from the playing notes array and the new note gets
+ * inserted on that empty spot instead.
+ * If any playing note stops playing (before a new one comes in), the newest
+ * non-playing note will come back into the peek_n-return and continues
+ * playing (but maybe on another channel...)
+ */
 
 // those voltages created for the values by the DAC
 // will be ~doubled by a OpAmp
@@ -88,10 +114,11 @@ const uint8_t lfo_offset[2] = {
 // if we output 5V from the dac for the 127th semitone
 // - that makes a factor of amplification of 2.1166666)
 uint32_t voltage[11] = {
-	6192, // calculated: ((2^16)/127)*0*12
-	12385,// calculated: ((2^16)/127)*1*12
-	18577,// calculated: ((2^16)/127)*2*12
+	6192, // calculated: ((2^16)/127)*1*12
+	12385,// calculated: ((2^16)/127)*2*12
+	18577,// calculated: ((2^16)/127)*3*12
 	24769,// ... u get it :-)
+		  // one semitone is ((2^16)/127) round about 516
 	30962,
 	37154,
 	43347,
@@ -100,6 +127,8 @@ uint32_t voltage[11] = {
 	61924,
 	68116
 };
+
+uint16_t pitchbend = 0x2000; // middle_position
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
 // 768 - 8 bars; 96 - 1 bar or 1 full note; 48 - half note; ... 3 - 32th note
@@ -136,12 +165,16 @@ uint32_t midiclock_counter = 0;
 uint32_t current_midiclock_tick = 2;
 uint32_t last_midiclock_tick = 1;
 
+uint32_t last_single_bar_completed_tick = 0;
+uint32_t last_eight_bars_completed_tick = 0;
+
 uint8_t old_midi_channel = 7;
 uint8_t midi_channel = 7;
 
 uint32_t ticks = 0;
 uint8_t ticks_correction = 0;
 uint16_t correction_counter = 0;
+uint16_t ccorrection_counter = 0;
 // with our 8 bit timer and prescaler 256 we have
 //		1000/((1/(16MHz/256/256))*1000)=244,140625 interrupts per second -> taking 244
 // which means that if we take 244 we have to take into account that
@@ -149,20 +182,34 @@ uint16_t correction_counter = 0;
 //		1/0,140625=7,11111 -> after 7*244 interrupts we have to increment by 2 instead of 1
 #define TPSEC		(244)
 #define TPSEC_CORR	(7)
+// now we still would have 7*244 = 1708 where we would increment to 1709
+// but 244,140625*7 = 1708,984375
+// resulting in an error of 1709-1708,984375 = 0,015625
+// That means we are overcorrecting slightly and now could recorrect
+// every 1/0,015625 = 64 steps with simply not incrementing to correct
+// that will result 244,140625*7*64 = 109375 = 1709*64-1 -> error of 0,0 - yay
+#define TTPSEC		(64)
 
 #define NUM_LFO		(2)
 lfo_t lfo[NUM_LFO];
 volatile bool must_update_lfo = false;
 
-#define LFO_ENABLE			(0x04)
+#define LFO_AND_CLOCK_OUT_ENABLE			(0x04)
 
 uint8_t program_options = 0x00;
 
+#define NUM_CLOCK_OUTPUTS	(2)
+#define CLOCK_TRIGGER_COUNTDOWN_INIT	(3)
+clock_trigger_t clock_output[NUM_CLOCK_OUTPUTS];
+volatile bool must_update_clock_output = false;
+
 // additional variables to emulate hardware I/O
+uint8_t button_led_port = 0x00;
 uint8_t gate_port = 0x00;
 uint8_t trigger_port = 0x00;
+uint8_t button_pin = 0x00;
 uint8_t input_buffer[NUM_SHIFTIN_REG];
-uint16_t analog_input_value = 0x00;
+uint16_t analog_input_value[4] = {0x00};
 // ----------------------------------------------
 
 // some additional variables needed for our tests
@@ -179,8 +226,11 @@ testnote_t e;
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
 void update_dac(void);
+void update_lfo(void);
+void update_clock_output(void);
 void process_user_input(void);
 void process_analog_in(void);
+void update_clock_trigger(void);
 void init_variables(void);
 void init_lfo(void);
 void init_io(void);
@@ -199,17 +249,34 @@ void timer1_overflow_function(void);
 
 bool midi_handler_function(midimessage_t* m) {
 	midinote_t mnote;
+	uint8_t i=0;
 	if(m->byte[0] == NOTE_ON(midi_channel)) {
 		mnote.note = m->byte[1];
 		mnote.velocity = m->byte[2];
 		if(mnote.velocity != 0x00) {
 			midinote_stack_push(&note_stack, mnote);
+			for(i=0;i<NUM_LFO;i++) {
+				if(lfo[i].retrigger_on_new_note)
+					lfo[i].position = 0;
+			}
 		} else {
 			midinote_stack_remove(&note_stack, m->byte[1]);
 		}
 		return true;
 	} else if (m->byte[0] == NOTE_OFF(midi_channel)) {
 		midinote_stack_remove(&note_stack, m->byte[1]);
+		return true;
+	} else if (m->byte[0] == PITCH_BEND(midi_channel)) {
+		// TODO: implement some logic to really bend the pitch of the stack notes
+		pitchbend = (m->byte[2]<<7) | m->byte[1];
+		return true;
+	} else if (m->byte[0] == CONTROL_CHANGE(midi_channel)) {
+		if(ALL_NOTES_OFF(m->byte[2])) {
+			midinote_stack_init(&note_stack);
+		} else if (m->byte[2] == MOD_WHEEL) {
+			//TODO: do something special here(?)
+			return true;
+		}
 		return true;
 	}
 	switch(m->byte[0]) {
@@ -257,10 +324,10 @@ void update_dac(void) {
 		vel_t velocity = playing_notes[i].midinote.velocity;
 		uint32_t voltage;
 		get_voltage(note, &voltage);
-		if(voltage != 0x00) {
+		if(voltage != 0x00) { // do not reset the oscillators pitch
 			dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
 		}
-		if(!ISSET(program_options, LFO_ENABLE)) {
+		if(!ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
 			// Send velocity
 			get_voltage(velocity, &voltage);
 			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
@@ -279,11 +346,24 @@ void update_dac(void) {
 }
 
 void update_lfo(void) {
-	if(ISSET(program_options, LFO_ENABLE)) {
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
 		uint8_t i=0;
 		for(;i<NUM_LFO;i++) {
 			uint32_t voltage = lfo[i].get_value(lfo+i);
 			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
+		}
+	}
+}
+
+void update_clock_output(void) {
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
+		uint8_t i=0;
+		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+			uint32_t voltage = 0x0000;
+			if(clock_output[i].active_countdown != 0) {
+				voltage = 0xffff; //TODO: maybe adjustable clock trigger level instead?
+			}
+			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES+NUM_LFO, voltage);
 		}
 	}
 }
@@ -300,10 +380,12 @@ void process_user_input(void) {
 	if(playmode != old_playmode) {
 		mode[playmode].init();
 	}
-	if(ISSET(input[0], LFO_ENABLE_BIT)) {
-		SET(program_options, LFO_ENABLE);
+	if(ISSET(input[0], LFO_CLOCK_ENABLE_BIT)) {
+		SET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
 	} else {
-		UNSET(program_options, LFO_ENABLE);
+		UNSET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
+		must_update_dac = true;
+		// TODO: unset the voltages
 	}
 	midi_channel = (input[0] & MIDI_CHANNEL_MASK);
 	if(midi_channel != old_midi_channel) {
@@ -315,31 +397,60 @@ void process_user_input(void) {
 	}
 	lfo[0].clock_sync = ISSET(input[1], LFO0_CLOCKSYNC);
 	lfo[1].clock_sync = ISSET(input[1], LFO1_CLOCKSYNC);
+	lfo[0].retrigger_on_new_note = ISSET(input[1], LFO0_RETRIGGER_ON_NEW_NOTE);
+	lfo[1].retrigger_on_new_note = ISSET(input[1], LFO1_RETRIGGER_ON_NEW_NOTE);
 	uint8_t wave_settings;
 	uint8_t i= 0;
 	for(;i<NUM_LFO;i++) {
 		wave_settings = (input[1]>>lfo_offset[i])& LFO_MASK;
 		switch(wave_settings) {
-			case 0:
+			case 1:
 				lfo[i].get_value = lfo_get_triangle;
 				break;
-			case 1:
+			case 2:
 				lfo[i].get_value = lfo_get_pulse;
 				break;
-			case 2:
+			case 3:
 				lfo[i].get_value = lfo_get_sawtooth;
 				break;
 			default:
 				break;
 		}
 	}
+
+	// if button not pressed - light up LED
+	if( (BUTTON_PIN & (1<<BUTTON)) ) {
+		BUTTON_LED_PORT |= (1<<LED);
+	} else { // otherwise turn it off
+		BUTTON_LED_PORT &= ~(1<<LED);
+	}
+}
+
+uint16_t analog_read(uint8_t channel) {
+	assert(channel<sizeof(analog_input_value));
+	return analog_input_value[channel];
 }
 
 void process_analog_in(void) {
-	assert(analog_input_value<1024);
-	uint8_t i=0;
-	for(;i<NUM_LFO; i++) {
-		lfo[i].stepwidth = analog_input_value;
+	int helper_i = 0;
+	for(; helper_i<sizeof(analog_input_value); helper_i++) {
+		assert(analog_input_value[helper_i]<1024);
+	}
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
+		uint8_t i=0;
+		for(;i<NUM_LFO; i++) {
+			uint16_t analog_value = analog_read(LFO_RATE_POTI0+i);
+			if(lfo[i].clock_sync) {
+				// analog_value/64 gives us 16 possible clock_modes
+				lfo[i].clock_mode = (analog_value/64 > sizeof(clock_limit)-1) ? sizeof(clock_limit)-1 : analog_value/64;
+			} else {
+				lfo[i].stepwidth = ((analog_value+1)*4);
+			}
+		}
+		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+			uint16_t analog_value = analog_read(CLOCK_RATE_POTI0+i);
+			clock_output[i].mode = analog_value/64; // make it 16 possible modes
+		}
 	}
 }
 
@@ -347,10 +458,23 @@ void process_analog_in(void) {
 //       otherwise we may lose trigger-points
 void update_clock_trigger(void) {
 	uint8_t i;
-	for(i=0;i<NUM_LFO;i++) {
-		if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0 &&
-			(ISSET(program_options, LFO_ENABLE))) {
-			lfo[i].last_cycle_completed_tick = ticks;
+	if(ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
+		for(i=0;i<NUM_LFO;i++) {
+			if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0) {
+				lfo[i].last_cycle_completed_tick = ticks;
+				lfo[i].position = 0; // reset lfo position to always stay in sync with the clock
+			}
+		}
+		if(midiclock_counter % SINGLE_BAR_COMPLETED == 0) {
+			last_single_bar_completed_tick = ticks;
+		}
+		if(midiclock_counter % EIGHT_BARS_COMPLETED == 0) {
+			last_eight_bars_completed_tick = ticks;
+		}
+		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+			if((midiclock_counter % clock_limit[clock_output[i].mode]) == 0) {
+				clock_output[i].active_countdown = CLOCK_TRIGGER_COUNTDOWN_INIT;
+			}
 		}
 	}
 }
@@ -458,7 +582,13 @@ void timer2_overflow_function(void) {
 	if(correction_counter == TPSEC) {
 		ticks_correction++;
 		if(ticks_correction == TPSEC_CORR) {
-			ticks++;
+			ccorrection_counter++;
+			if(ccorrection_counter == TTPSEC) {
+				// not correcting here - see explaination at definition of TTPSEC
+				ccorrection_counter = 0;
+			} else {
+				ticks++;
+			}
 			ticks_correction = 0;
 		}
 		correction_counter = 0;
@@ -467,14 +597,22 @@ void timer2_overflow_function(void) {
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
 		if(lfo[i].clock_sync) {
+			// recalculate stepwidth everytime to even out division errors
 			lfo[i].stepwidth = LFO_TABLE_LENGTH / ((current_midiclock_tick - last_midiclock_tick)*clock_limit[lfo[i].clock_mode]);
-			lfo[i].position = (ticks - lfo[i].last_cycle_completed_tick) * lfo[i].stepwidth;
+			lfo[i].position += lfo[i].stepwidth;
 		} else {
 			lfo[i].position += lfo[i].stepwidth;
-			lfo[i].position %= LFO_TABLE_LENGTH;
 		}
+		lfo[i].position %= LFO_TABLE_LENGTH;
 	}
 	must_update_lfo = true;
+
+	for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
+		if(clock_output[i].active_countdown > 0) {
+			clock_output[i].active_countdown--;
+			must_update_clock_output = true;
+		}
+	}
 }
 
 int main(int argc, char** argv) {
@@ -908,7 +1046,7 @@ int main(int argc, char** argv) {
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
 		assert(playing_notes[0].midinote.note == 0x00);
 		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(must_update_dac != true);
+		assert(must_update_dac == true);
 		assert(playing_notes[0].midinote.note == 0x3c);
 		assert(gate_port == 0x00);
 		update_dac();
