@@ -424,12 +424,12 @@ void update_clock_trigger(void) {
 			if((midiclock_counter % clock_limit[lfo[i].clock_mode]) == 0) {
 				lfo[i].last_cycle_completed_tick = ticks;
 			}
-			if(midiclock_counter % SINGLE_BAR_COMPLETED == 0) {
-				last_single_bar_completed_tick = ticks;
-			}
-			if(midiclock_counter % EIGHT_BARS_COMPLETED == 0) {
-				last_eight_bars_completed_tick = ticks;
-			}
+		}
+		if(midiclock_counter % SINGLE_BAR_COMPLETED == 0) {
+			last_single_bar_completed_tick = ticks;
+		}
+		if(midiclock_counter % EIGHT_BARS_COMPLETED == 0) {
+			last_eight_bars_completed_tick = ticks;
 		}
 		for(i=0;i<NUM_CLOCK_OUTPUTS;i++) {
 			if((midiclock_counter % clock_limit[clock_output[i].mode]) == 0) {
