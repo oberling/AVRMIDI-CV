@@ -9,7 +9,7 @@ uint16_t __get_sawtooth(lfo_t* lfo) {
 }
 
 uint16_t __get_pulse(lfo_t* lfo) {
-	return (lfo->position%0xffff > LFO_HALF_TABLE_LENGTH) ? 0xffff : 0x0000;
+	return (lfo->position%0xffff > LFO_HALF_TABLE_LENGTH) ? 0x0000 : 0xffff;
 }
 
 uint16_t __get_triangle(lfo_t* lfo) {
