@@ -29,6 +29,7 @@ struct lfo_t {
 };
 
 
+extern get_lfo_value_t lfo_get_rev_sawtooth;
 extern get_lfo_value_t lfo_get_sawtooth;
 extern get_lfo_value_t lfo_get_pulse;
 extern get_lfo_value_t lfo_get_triangle;
