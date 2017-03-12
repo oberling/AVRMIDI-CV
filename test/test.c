@@ -172,23 +172,6 @@ uint8_t old_midi_channel = 7;
 uint8_t midi_channel = 7;
 
 uint32_t ticks = 0;
-uint8_t ticks_correction = 0;
-uint16_t correction_counter = 0;
-uint16_t ccorrection_counter = 0;
-// with our 8 bit timer and prescaler 256 we have
-//		1000/((1/(16MHz/256/256))*1000)=244,140625 interrupts per second -> taking 244
-// which means that if we take 244 we have to take into account that
-// we have to do some error correction here:
-//		1/0,140625=7,11111 -> after 7*244 interrupts we have to increment by 2 instead of 1
-#define TPSEC		(244)
-#define TPSEC_CORR	(7)
-// now we still would have 7*244 = 1708 where we would increment to 1709
-// but 244,140625*7 = 1708,984375
-// resulting in an error of 1709-1708,984375 = 0,015625
-// That means we are overcorrecting slightly and now could recorrect
-// every 1/0,015625 = 64 steps with simply not incrementing to correct
-// that will result 244,140625*7*64 = 109375 = 1709*64-1 -> error of 0,0 - yay
-#define TTPSEC		(64)
 
 #define NUM_LFO		(2)
 lfo_t lfo[NUM_LFO];
@@ -581,21 +564,6 @@ void timer1_overflow_function(void) {
 }
 
 void timer2_overflow_function(void) {
-	correction_counter++;
-	if(correction_counter == TPSEC) {
-		ticks_correction++;
-		if(ticks_correction == TPSEC_CORR) {
-			ccorrection_counter++;
-			if(ccorrection_counter == TTPSEC) {
-				// not correcting here - see explaination at definition of TTPSEC
-				ccorrection_counter = 0;
-			} else {
-				ticks++;
-			}
-			ticks_correction = 0;
-		}
-		correction_counter = 0;
-	}
 	ticks++;
 	uint8_t i=0;
 	for(;i<NUM_LFO;i++) {
