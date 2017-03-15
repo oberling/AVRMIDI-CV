@@ -150,6 +150,7 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 						current_message.byte[current_message_next_fillbyte] = 0x00;
 					}
 				}
+				current_message_next_fillbyte = 1;
 				return true;
 			}
 		}
