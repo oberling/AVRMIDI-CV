@@ -1,7 +1,7 @@
 #include "midibuffer.h"
 
 bool midibuffer_issysex=false;
-midimessage_t current_message = {0};
+midimessage_t current_message = {{0}};
 uint8_t current_message_next_fillbyte = 0;
 
 bool midibuffer_init(midibuffer_t* b, midimessage_handler h) {
