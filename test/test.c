@@ -642,6 +642,15 @@ int main(int argc, char** argv) {
 		assert(ringbuffer_getn_or_nothing(&(midi_buffer.buffer), mybuffer, 1)==false);
 		midi_buffer.buffer.pos_read = old_read;
 		printf("success\n");
+		printf("\tbuffer overflow test ");
+		uint8_t i=0;
+		uint8_t old_write = midi_buffer.buffer.pos_write;
+		for(; i<RINGBUFFER_SIZE-1; i++) {
+			assert(ringbuffer_put(&(midi_buffer.buffer), i)==true);
+		}
+		assert(ringbuffer_put(&(midi_buffer.buffer), 'a') == false);
+		midi_buffer.buffer.pos_write = old_write;
+		printf("success\n");
 	}
 	printf("} success\n");
 	printf("checking note arrived on note_stack");
