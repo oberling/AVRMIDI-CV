@@ -880,6 +880,21 @@ int main(int argc, char** argv) {
 		assert(playing_notes[2].midinote.note == b.byte[1]);
 		assert(playing_notes[3].midinote.note == e.byte[1]);
 		printf(" success\n");
+		printf("\ttesting running status ");
+		init_variables();
+		mode[playmode].init();
+		assert(midibuffer_put(&midi_buffer, NOTE_ON(midi_channel))==true);
+		assert(midibuffer_put(&midi_buffer, a.byte[1])==true);
+		assert(midibuffer_put(&midi_buffer, a.byte[2])==true);
+		assert(midibuffer_put(&midi_buffer, b.byte[1])==true);
+		assert(midibuffer_put(&midi_buffer, b.byte[2])==true);
+		assert(midibuffer_put(&midi_buffer, c.byte[1])==true);
+		assert(midibuffer_put(&midi_buffer, c.byte[2])==true);
+		uint8_t i=0;
+		for(;i<3; i++) {
+			assert(midibuffer_tick(&midi_buffer) == true);
+		}
+		printf("success\n");
 	}
 	printf("} success\n");
 	printf("testing unison mode {");
