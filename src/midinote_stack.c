@@ -39,11 +39,14 @@ bool midinote_stack_pop(midinote_stack_t* s, midinote_t* out) {
 
 bool midinote_stack_remove(midinote_stack_t* s, note_t remnote) {
 	uint8_t i=0;
-	while(s->data[i].note != remnote && i<MIDINOTE_STACK_SIZE)
+	// search for note on stack
+	while(s->data[i].note != remnote && i<s->position)
 		i++;
-	if(i>=MIDINOTE_STACK_SIZE)
+	// if we are at end and have not found the remnote - return false
+	if(i>=s->position)
 		return false;
-	while(i<MIDINOTE_STACK_SIZE) {
+	// else remove the note by shifting all following positions one to the front
+	while(i<s->position) {
 		s->data[i] = s->data[i+1];
 		i++;
 	}
