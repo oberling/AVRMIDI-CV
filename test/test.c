@@ -765,6 +765,34 @@ int main(int argc, char** argv) {
 		printf(" success\n");
 	}
 	printf("} success\n");
+	printf("testing note_stack {");
+	{
+		init_variables();
+		init_notes();
+		printf("\ttesting overflow ");
+		uint8_t i=0;
+		midinote_t mnote;
+		for(;i<MIDINOTE_STACK_SIZE; i++) {
+			mnote.note = i;
+			mnote.velocity = 0x55;
+			assert(note_stack.position==i);
+			midinote_stack_push(&note_stack, mnote);
+		}
+		mnote.note = i;
+		assert(note_stack.data[0].note == 0);
+		midinote_stack_push(&note_stack, mnote);
+		assert(note_stack.position == (MIDINOTE_STACK_SIZE));
+		assert(note_stack.data[0].note == 1);
+		assert(note_stack.data[MIDINOTE_STACK_SIZE-1].note == i);
+		i++;
+		mnote.note = i;
+		midinote_stack_push(&note_stack, mnote);
+		assert(note_stack.position == (MIDINOTE_STACK_SIZE));
+		assert(note_stack.data[0].note == 2);
+		assert(note_stack.data[MIDINOTE_STACK_SIZE-1].note == i);
+		printf("success\n");
+	}
+	printf("} success\n");
 	printf("testing polyphonic mode {");
 	{
 		init_variables();
