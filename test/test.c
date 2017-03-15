@@ -790,6 +790,12 @@ int main(int argc, char** argv) {
 		assert(note_stack.position == (MIDINOTE_STACK_SIZE));
 		assert(note_stack.data[0].note == 2);
 		assert(note_stack.data[MIDINOTE_STACK_SIZE-1].note == i);
+		i++;
+		mnote.note = i;
+		midinote_stack_push(&note_stack, mnote);
+		assert(note_stack.position == (MIDINOTE_STACK_SIZE));
+		assert(note_stack.data[0].note == 3);
+		assert(note_stack.data[MIDINOTE_STACK_SIZE-1].note == i);
 		printf("success\n");
 	}
 	printf("} success\n");
