@@ -765,7 +765,7 @@ int main(int argc, char** argv) {
 		printf(" success\n");
 	}
 	printf("} success\n");
-	printf("testing note_stack {");
+	printf("testing note_stack {\n");
 	{
 		init_variables();
 		init_notes();

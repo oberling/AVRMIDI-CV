@@ -258,7 +258,6 @@ bool midi_handler_function(midimessage_t* m) {
 	return true;
 }
 
-
 void get_voltage(uint8_t val, uint32_t* voltage_out) {
 	uint8_t i = (val/12); // which octave are we in?
 	float step = (val-(i*12))/12.0; // relative position in octave
