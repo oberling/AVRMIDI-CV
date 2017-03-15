@@ -15,8 +15,10 @@ bool midinote_stack_push(midinote_stack_t* s, midinote_t d) {
 			return true;
 		}
 	}
-	if(s->position>MIDINOTE_STACK_SIZE) {
-		for(;i<MIDINOTE_STACK_SIZE-1; i++) {
+	// if no update of existing note i is now at s->position
+	// if stack is full: forget oldest note
+	if(s->position==MIDINOTE_STACK_SIZE) {
+		for(i=0;i<MIDINOTE_STACK_SIZE-1; i++) {
 			s->data[i] = s->data[i+1];
 		}
 		s->position = i;
