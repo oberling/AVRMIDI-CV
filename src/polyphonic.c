@@ -38,7 +38,7 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* play
 		}
 		// reset that note as it isn't played anymore
 		if(!found)
-			memset(playing_notes+i, 0, sizeof(playingnote_t));
+			memset(playing_notes+i, EMPTY_NOTE, sizeof(playingnote_t));
 	}
 	// add new playing notes - update velocity of already playing notes
 	for(i=0;i<actual_played_notes; i++) {
@@ -52,7 +52,7 @@ void __update_notes_polyphonic(midinote_stack_t* note_stack, playingnote_t* play
 		}
 		if(!found) {
 			for(j=0; j<NUM_PLAY_NOTES; j++) {
-				if((playing_notes+lru[j])->midinote.note == 0) {
+				if((playing_notes+lru[j])->midinote.note == EMPTY_NOTE) {
 					(playing_notes+lru[j])->midinote = *(it+i);
 					lru_cache_use(lru, j, NUM_PLAY_NOTES);
 					break;

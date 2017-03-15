@@ -317,10 +317,10 @@ void update_dac(void) {
 		}
 
 		// not putting this if-clause at start because we would have to reset all
-		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes
-		// they are already 0 here if this note is not playing and will get reset
+		// other pins/dac-outputs anyway... but as of memset to EMPTY_NOTE in update_notes
+		// they are already EMPTY_NOTE here if this note is not playing and will get reset
 		// implicitly here
-		if(playing_notes[i].midinote.note != 0) {
+		if(playing_notes[i].midinote.note != EMPTY_NOTE) {
 			GATE_PORT |= (1<<(i+(GATE_OFFSET)));
 		} else {
 			GATE_PORT &= ~(1<<(i+(GATE_OFFSET)));
@@ -468,7 +468,7 @@ void update_clock_trigger(void) {
 void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
-	memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
+	memset(playing_notes, EMPTY_NOTE, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 	memset(mode, 0, sizeof(playmode_t)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
 	mode[POLYPHONIC_MODE].init = init_polyphonic;
@@ -594,8 +594,8 @@ int main(int argc, char** argv) {
 	{
 		init_variables();
 		for(;i<MIDINOTE_STACK_SIZE; i++) {
-			assert(note_stack.data[i].note == 0);
-			assert(note_stack.data[i].velocity == 0);
+			assert(note_stack.data[i].note == EMPTY_NOTE);
+			assert(note_stack.data[i].velocity == EMPTY_NOTE);
 		}
 		for(i=0; i<RINGBUFFER_SIZE; i++) {
 			assert(midi_buffer.buffer.buffer[i] == 0);
@@ -656,15 +656,15 @@ int main(int argc, char** argv) {
 	printf(" success\n");
 	printf("checking note handling");
 	{
-		assert(playing_notes[0].midinote.note == 0x00);
+		assert(playing_notes[0].midinote.note == EMPTY_NOTE);
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == 0x6f);
 	}
 	printf(" success\n");
 	printf("testing peek does not pop");
 	{
-		memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
-		assert(playing_notes[0].midinote.note == 0x00 && playing_notes[0].midinote.velocity == 0x00);
+		memset(playing_notes, EMPTY_NOTE, sizeof(playingnote_t)*NUM_PLAY_NOTES);
+		assert(playing_notes[0].midinote.note == EMPTY_NOTE && playing_notes[0].midinote.velocity == EMPTY_NOTE);
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == 0x6f && playing_notes[0].midinote.velocity == 0x5d);
 	}
@@ -675,7 +675,7 @@ int main(int argc, char** argv) {
 		insert_midibuffer_test(a);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(playing_notes[0].midinote.note == 0x00);
+		assert(playing_notes[0].midinote.note == EMPTY_NOTE);
 	}
 	printf(" success\n");
 	printf("testing multiple notes {");
@@ -819,7 +819,7 @@ int main(int argc, char** argv) {
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(playing_notes[0].midinote.note == a.byte[1]);
 		assert(playing_notes[1].midinote.note == c.byte[1]);
-		assert(playing_notes[2].midinote.note == 0x00);
+		assert(playing_notes[2].midinote.note == EMPTY_NOTE);
 		assert(playing_notes[3].midinote.note == e.byte[1]);
 		printf(" success\n");
 		printf("\tinserting a new note");
@@ -1015,7 +1015,7 @@ int main(int argc, char** argv) {
 		midinote_t* it;
 		uint8_t num_notes = 0;
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
-		assert(playing_notes[0].midinote.note == 0x00);
+		assert(playing_notes[0].midinote.note == EMPTY_NOTE);
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		assert(must_update_dac == true);
 		assert(playing_notes[0].midinote.note == 0x3c);
@@ -1041,7 +1041,7 @@ int main(int argc, char** argv) {
 		insert_midibuffer_test(z);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		mode[playmode].update_notes(&note_stack, playing_notes);
-		assert(playing_notes[0].midinote.note == 0x00);
+		assert(playing_notes[0].midinote.note == EMPTY_NOTE);
 	}
 	printf(" success\n");
 	printf("testing multiple same NOTE_ON and single NOTE_OFF");
@@ -1058,14 +1058,14 @@ int main(int argc, char** argv) {
 		assert(playing_notes[0].midinote.note == a.byte[1]);
 		uint8_t i=1;
 		for(;i<NUM_PLAY_NOTES; i++) {
-			assert(playing_notes[i].midinote.note == 0x00);
+			assert(playing_notes[i].midinote.note == EMPTY_NOTE);
 		}
 		a.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(a);
 		assert(midibuffer_tick(&midi_buffer) == true);
 		mode[playmode].update_notes(&note_stack, playing_notes);
 		for(i=0; i<NUM_PLAY_NOTES; i++) {
-			assert(playing_notes[i].midinote.note == 0x00);
+			assert(playing_notes[i].midinote.note == EMPTY_NOTE);
 		}
 	}
 	printf(" success\n");
@@ -1086,7 +1086,7 @@ int main(int argc, char** argv) {
 		process_user_input();
 		assert(playmode == POLYPHONIC_MODE);
 		assert(midi_channel == 5);
-		assert(playing_notes[0].midinote.note == 0x00);
+		assert(playing_notes[0].midinote.note == EMPTY_NOTE);
 		insert_midibuffer_test(a);
 		assert(midibuffer_tick(&midi_buffer) != true);
 		a.byte[0] = NOTE_ON(midi_channel);

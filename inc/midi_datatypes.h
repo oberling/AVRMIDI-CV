@@ -23,6 +23,8 @@
 #define ALL_NOTES_OFF(x)	((x>=123) && (x<=127))
 #define MOD_WHEEL			(0x01)
 
+#define EMPTY_NOTE		(0xff)
+
 typedef uint8_t note_t;
 typedef uint8_t vel_t;
 

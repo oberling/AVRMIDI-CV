@@ -288,10 +288,10 @@ void update_dac(void) {
 		}
 
 		// not putting this if-clause at start because we would have to reset all
-		// other pins/dac-outputs anyway... but as of memset to 0 in update_notes
-		// they are already 0 here if this note is not playing and will get reset
+		// other pins/dac-outputs anyway... but as of memset to EMPTY_NOTE in update_notes
+		// they are already EMPTY_NOTE here if this note is not playing and will get reset
 		// implicitly here
-		if(playing_notes[i].midinote.note != 0) {
+		if(playing_notes[i].midinote.note != EMPTY_NOTE) {
 			GATE_PORT |= (1<<(i+(GATE_OFFSET)));
 		} else {
 			GATE_PORT &= ~(1<<(i+(GATE_OFFSET)));
@@ -429,7 +429,8 @@ void update_clock_trigger(void) {
 void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
-	memset(playing_notes, 0, sizeof(playingnote_t)*NUM_PLAY_NOTES);
+	// initializing to EMPTY_NOTE to be able to play note 0 as well
+	memset(playing_notes, EMPTY_NOTE, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 	memset(mode, 0, sizeof(playmode_t)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;
 	mode[POLYPHONIC_MODE].init = init_polyphonic;
