@@ -287,7 +287,7 @@ bool midi_handler_function(midimessage_t* m) {
 		default:
 			return false;
 	}
-	return true;
+	return false;
 }
 
 void get_voltage(uint8_t val, uint32_t* voltage_out) {

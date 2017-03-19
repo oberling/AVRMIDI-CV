@@ -232,32 +232,33 @@ bool midi_handler_function(midimessage_t* m) {
 			//TODO: do something special here(?)
 			return true;
 		}
-		return true;
+		return false;
+	} else {
+		switch(m->byte[0]) {
+			case CLOCK_SIGNAL:
+				midiclock_counter++;
+				cli();
+				last_midiclock_tick = current_midiclock_tick;
+				current_midiclock_tick = ticks;
+				sei();
+				update_clock = true;
+				break;
+			case CLOCK_START:
+			case CLOCK_STOP:
+				midiclock_counter = 0;
+				cli();
+				// avoid division by zero in clock synced lfo mode
+				last_midiclock_tick = 1;
+				current_midiclock_tick = 2;
+				sei();
+				break;
+			case CLOCK_CONTINUE:
+				break;
+			default:
+				return false;
+		}
 	}
-	switch(m->byte[0]) {
-		case CLOCK_SIGNAL:
-			midiclock_counter++;
-			cli();
-			last_midiclock_tick = current_midiclock_tick;
-			current_midiclock_tick = ticks;
-			sei();
-			update_clock = true;
-			break;
-		case CLOCK_START:
-		case CLOCK_STOP:
-			midiclock_counter = 0;
-			cli();
-			// avoid division by zero in clock synced lfo mode
-			last_midiclock_tick = 1;
-			current_midiclock_tick = 2;
-			sei();
-			break;
-		case CLOCK_CONTINUE:
-			break;
-		default:
-			return false;
-	}
-	return true;
+	return false;
 }
 
 void get_voltage(uint8_t val, uint32_t* voltage_out) {
