@@ -8,8 +8,8 @@ PB5		-	SCK
 PB6		-	XTAL	(16 MHz)
 PB7		-	XTAL	(16 MHz)
 
-PC0	ADC0	-		()
-PC1	ADC1	-		()
+PC0	ADC0	-		(BUTTON) Button input pin
+PC1	ADC1	-		(LED) LED output pin
 PC2	ADC2	-		(POTI) - used for CLOCK DIVISION RATE 1
 PC3	ADC3	-		(POTI) - used for CLOCK DIVISION RATE 2
 PC4	ADC4	-		(POTI) - used for LFO RATE 1
