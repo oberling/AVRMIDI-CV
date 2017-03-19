@@ -225,9 +225,10 @@ bool midi_handler_function(midimessage_t* m) {
 		pitchbend = (m->byte[2]<<7) | m->byte[1];
 		return true;
 	} else if (m->byte[0] == CONTROL_CHANGE(midi_channel)) {
-		if(ALL_NOTES_OFF(m->byte[2])) {
+		if((m->byte[1]== 120 || m->byte[1] == 123) && m->byte[2] == 0) { // all sound off
 			midinote_stack_init(&note_stack);
-		} else if (m->byte[2] == MOD_WHEEL) {
+			return true;
+		} else if (m->byte[1] == MOD_WHEEL) {
 			//TODO: do something special here(?)
 			return true;
 		}
