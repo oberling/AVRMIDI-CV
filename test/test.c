@@ -1217,6 +1217,7 @@ int main(int argc, char** argv) {
 		z.byte[2] = 0x72;
 		insert_midibuffer_test(z);
 		assert(midibuffer_tick(&midi_buffer) == true);
+		must_update_dac = true; // because midibuffer_tick returned true
 		midinote_t* it;
 		uint8_t num_notes = 0;
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == true);
