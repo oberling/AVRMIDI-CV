@@ -172,6 +172,7 @@ uint8_t old_midi_channel = 7;
 uint8_t midi_channel = 7;
 
 uint32_t ticks = 0;
+uint32_t last_led_toggle_tick = 0;
 
 #define NUM_LFO		(2)
 lfo_t lfo[NUM_LFO];
@@ -190,7 +191,7 @@ volatile bool must_update_clock_output = false;
 uint8_t button_led_port = 0x00;
 uint8_t gate_port = 0x00;
 uint8_t trigger_port = 0x00;
-uint8_t button_pin = 0x00;
+uint8_t button_pin = (1<<BUTTON);
 uint8_t input_buffer[NUM_SHIFTIN_REG];
 uint16_t analog_input_value[4] = {0x00};
 // ----------------------------------------------
@@ -354,61 +355,69 @@ void update_clock_output(void) {
 void process_user_input(void) {
 	uint8_t input[NUM_SHIFTIN_REG];
 	sr74hc165_read(input, NUM_SHIFTIN_REG);
-	uint8_t old_playmode = playmode;
-	if(ISSET(input[0], MODE_BIT0)) {
-		playmode = POLYPHONIC_MODE;
-	} else {
-		playmode = UNISON_MODE;
-	}
-	if(playmode != old_playmode) {
-		mode[playmode].init();
-	}
-	if(ISSET(input[0], LFO_CLOCK_ENABLE_BIT)) {
-		SET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
-	} else {
-		UNSET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
-		must_update_dac = true;
-		// TODO: unset the voltages
-	}
-	midi_channel = (input[0] & MIDI_CHANNEL_MASK);
-	if(midi_channel != old_midi_channel) {
-		cli();
-		init_variables();
-		must_update_dac = true;
-		sei();
-		old_midi_channel = midi_channel;
-	}
-	lfo[0].clock_sync = ISSET(input[1], LFO0_CLOCKSYNC);
-	lfo[1].clock_sync = ISSET(input[1], LFO1_CLOCKSYNC);
-	lfo[0].retrigger_on_new_note = ISSET(input[1], LFO0_RETRIGGER_ON_NEW_NOTE);
-	lfo[1].retrigger_on_new_note = ISSET(input[1], LFO1_RETRIGGER_ON_NEW_NOTE);
-	uint8_t wave_settings;
-	uint8_t i= 0;
-	for(;i<NUM_LFO;i++) {
-		wave_settings = (input[1]>>lfo_offset[i])& LFO_MASK;
-		switch(wave_settings) {
-			case 0:
-				lfo[i].get_value = lfo_get_rev_sawtooth;
-				break;
-			case 1:
-				lfo[i].get_value = lfo_get_triangle;
-				break;
-			case 2:
-				lfo[i].get_value = lfo_get_pulse;
-				break;
-			case 3:
-				lfo[i].get_value = lfo_get_sawtooth;
-				break;
-			default:
-				break;
+	// no need to debounce butten
+	if(!(BUTTON_PIN & (1<<BUTTON)) ) {
+		// CONTROL MODE
+		if(ticks-last_led_toggle_tick > 100) {
+			BUTTON_LED_PORT ^= (1<<LED);
+			last_led_toggle_tick = ticks;
 		}
-	}
-
-	// if button not pressed - light up LED
-	if( (BUTTON_PIN & (1<<BUTTON)) ) {
+//		// otherwise turn it off
+//		BUTTON_LED_PORT &= ~(1<<LED);
+	} else {
+		// PLAY MODE
+		// if button not pressed - light up LED permanently
 		BUTTON_LED_PORT |= (1<<LED);
-	} else { // otherwise turn it off
-		BUTTON_LED_PORT &= ~(1<<LED);
+
+		uint8_t old_playmode = playmode;
+		if(ISSET(input[0], MODE_BIT0)) {
+			playmode = POLYPHONIC_MODE;
+		} else {
+			playmode = UNISON_MODE;
+		}
+		if(playmode != old_playmode) {
+			mode[playmode].init();
+		}
+		if(ISSET(input[0], LFO_CLOCK_ENABLE_BIT)) {
+			SET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
+		} else {
+			UNSET(program_options, LFO_AND_CLOCK_OUT_ENABLE);
+			must_update_dac = true;
+			// TODO: unset the voltages
+		}
+		midi_channel = (input[0] & MIDI_CHANNEL_MASK);
+		if(midi_channel != old_midi_channel) {
+			cli();
+			init_variables();
+			must_update_dac = true;
+			sei();
+			old_midi_channel = midi_channel;
+		}
+		lfo[0].clock_sync = ISSET(input[1], LFO0_CLOCKSYNC);
+		lfo[1].clock_sync = ISSET(input[1], LFO1_CLOCKSYNC);
+		lfo[0].retrigger_on_new_note = ISSET(input[1], LFO0_RETRIGGER_ON_NEW_NOTE);
+		lfo[1].retrigger_on_new_note = ISSET(input[1], LFO1_RETRIGGER_ON_NEW_NOTE);
+		uint8_t wave_settings;
+		uint8_t i= 0;
+		for(;i<NUM_LFO;i++) {
+			wave_settings = (input[1]>>lfo_offset[i])& LFO_MASK;
+			switch(wave_settings) {
+				case 0:
+					lfo[i].get_value = lfo_get_rev_sawtooth;
+					break;
+				case 1:
+					lfo[i].get_value = lfo_get_triangle;
+					break;
+				case 2:
+					lfo[i].get_value = lfo_get_pulse;
+					break;
+				case 3:
+					lfo[i].get_value = lfo_get_sawtooth;
+					break;
+				default:
+					break;
+			}
+		}
 	}
 }
 
