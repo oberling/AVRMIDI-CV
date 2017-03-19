@@ -1124,10 +1124,10 @@ int main(int argc, char** argv) {
 		midinote_t* it;
 		uint8_t num_notes;
 		assert(midinote_stack_peek_n(&note_stack, 1, &it, &num_notes) == false);
-		assert(playing_notes[0].midinote.note == 0x00);
-		assert(playing_notes[1].midinote.note == 0x00);
-		assert(playing_notes[2].midinote.note == 0x00);
-		assert(playing_notes[3].midinote.note == 0x00);
+		assert(playing_notes[0].midinote.note == EMPTY_NOTE);
+		assert(playing_notes[1].midinote.note == EMPTY_NOTE);
+		assert(playing_notes[2].midinote.note == EMPTY_NOTE);
+		assert(playing_notes[3].midinote.note == EMPTY_NOTE);
 	}
 	printf(" success\n");
 	printf("testing some NOTE_OFF-Events for non-playing notes");
