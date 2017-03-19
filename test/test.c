@@ -643,14 +643,11 @@ int main(int argc, char** argv) {
 	printf("testing some ringbuffer behaviour {");
 	{
 		printf("\n");
-		printf("\tnot getting more than buffersize ");
-		unsigned char mybuffer[RINGBUFFER_SIZE*2];
-		assert(ringbuffer_getn_or_nothing(&(midi_buffer.buffer), mybuffer, RINGBUFFER_SIZE*2)==false);
-		printf("success\n");
 		printf("\tnot getting anything if buffer rings ");
 		uint8_t old_read = midi_buffer.buffer.pos_read;
 		midi_buffer.buffer.pos_read = midi_buffer.buffer.pos_write;
-		assert(ringbuffer_getn_or_nothing(&(midi_buffer.buffer), mybuffer, 1)==false);
+		uint8_t byte = 0x00;
+		assert(ringbuffer_get(&(midi_buffer.buffer), &byte)==false);
 		midi_buffer.buffer.pos_read = old_read;
 		printf("success\n");
 		printf("\tbuffer overflow test ");
