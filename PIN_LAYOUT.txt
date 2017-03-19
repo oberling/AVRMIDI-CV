@@ -76,15 +76,6 @@ GND		(14)	-	GND
 DIN		(15)	-	PB3 (MOSI)
 SCK		(16)	-	PB5 (SCK)
 
-murata NMV0512DC
-V+IN	(1)	5V
-V-IN	(2)	GND
-N.C.	(3)	no Pin
-N.C.	(4)	no Pin
-VOUT-	(5)	-12V
-0V		(6)	0V	->	GND
-VOUT+	(7)	+12V
-
 TL074D (same again for Velocity -> every KV is VV and every KDB is VOUT)
 1OUT	KV1		10kOhm-Trimmer->((1IN-) AND (4.7kOhm->GND))
 1IN-	see 1OUT
