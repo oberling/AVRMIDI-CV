@@ -16,12 +16,12 @@
 #define CLOCK_STOP			(0xFC)
 #define NOTE_OFF(x)			((0x80)|(x))
 #define NOTE_ON(x)			((0x90)|(x))
-#define NOTE_ON_NIBBLE		(0x09)
-#define NOTE_OFF_NIBBLE		(0x08)
+#define NOTE_ON_NIBBLE		(0x9)
+#define NOTE_OFF_NIBBLE		(0x8)
 #define CONTROL_CHANGE(x)	((0xB0)|(x))
 #define PITCH_BEND(x)		((0xE0)|(x))
 #define ALL_NOTES_OFF(x)	((x>=123) && (x<=127))
-#define MOD_WHEEL			(0x01)
+#define MOD_WHEEL			(0x1)
 
 #define EMPTY_NOTE		(0xff)
 
