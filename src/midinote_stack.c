@@ -29,24 +29,20 @@ bool midinote_stack_push(midinote_stack_t* s, midinote_t d) {
 	return true;
 }
 
-bool midinote_stack_pop(midinote_stack_t* s, midinote_t* out) {
-	if(s->position == 0) {
-		return false;
-	}
-	*out = s->data[s->position--];
-	return true;
-}
-
 bool midinote_stack_remove(midinote_stack_t* s, note_t remnote) {
+	// if stack is empty - don't remove anything
+	if(s->position == 0)
+		return false;
+
 	uint8_t i=0;
 	// search for note on stack
-	while(s->data[i].note != remnote && i<s->position)
+	while(i<s->position && s->data[i].note != remnote)
 		i++;
 	// if we are at end and have not found the remnote - return false
 	if(i>=s->position)
 		return false;
 	// else remove the note by shifting all following positions one to the front
-	while(i<s->position) {
+	while(i<s->position-1) {
 		s->data[i] = s->data[i+1];
 		i++;
 	}
