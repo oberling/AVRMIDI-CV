@@ -44,17 +44,6 @@ bool ringbuffer_init(ringbuffer_t* b);
 bool ringbuffer_get(ringbuffer_t* b, unsigned char* out);
 
 /**
- * \brief Function to take a look at the next byte to be taken
- * \description This function returns the next character from the buffer
- * if there is any without removing it from the buffer - it stays the
- * next byte to be taken from the buffer
- * \param in b the buffer to get a look at the next byte from
- * \param out out pointer to the location to store the next byte to
- * \return wether or not a byte could be returned
- */
-bool ringbuffer_peek(ringbuffer_t* b, unsigned char* out);
-
-/**
  * \brief Function to put a byte into the buffer
  * \description If the buffer has space the provided byte will be stored to it.
  * \param in b the buffer to put the byte into
@@ -62,17 +51,5 @@ bool ringbuffer_peek(ringbuffer_t* b, unsigned char* out);
  * \return wether or not the byte was stored in the buffer
  */
 bool ringbuffer_put(ringbuffer_t* b, unsigned char a);
-
-/**
- * \brief returns n bytes if available or fails returning false
- * \description This function is specifically designed to return n bytes from
- * the given buffer if present or nothing.
- * \param in b the buffer to take the n bytes from
- * \param out out pointer to the location to store the n bytes to (has to be
- * sized accordingly)
- * \param in num_bytes number of bytes to try to read from the buffer
- * \return wether or not the number of bytes could be read to out
- */
-bool ringbuffer_getn_or_nothing(ringbuffer_t* b, unsigned char* out, uint8_t num_bytes);
 
 #endif // __RINGBUFFER_H_

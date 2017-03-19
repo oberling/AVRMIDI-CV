@@ -43,16 +43,6 @@ bool midinote_stack_init(midinote_stack_t* s);
 bool midinote_stack_push(midinote_stack_t* s, midinote_t d);
 
 /**
- * \brief function to get the topmost midinote from the stack
- * \description This function writes the topmost midinote
- * of the stack to the provided midinote out variable
- * \param in s the midinote stack
- * \param out out the midinote to be fill with that data
- * \return whether or not there was data to return
- */
-bool midinote_stack_pop(midinote_stack_t* s, midinote_t* out);
-
-/**
  * \brief function to remove a certain note from the stack
  * \description This function removes a given note from the stack
  * regardless of its position and reorders the stack accordingly

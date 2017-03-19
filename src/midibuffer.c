@@ -9,33 +9,6 @@ bool midibuffer_init(midibuffer_t* b, midimessage_handler h) {
 	return ringbuffer_init(&(b->buffer));
 }
 
-bool __is_realtime_byte_message(uint8_t byte) {
-	return byte >= CLOCK_SIGNAL;
-}
-
-bool __handle_realtime_byte_message(midibuffer_t* b, midimessage_t* m, uint8_t byte) {
-	// ... by dispatching the following messages
-	if(
-		byte == CLOCK_SIGNAL || 
-		byte == CLOCK_START || 
-		byte == CLOCK_CONTINUE || 
-		byte == CLOCK_STOP ||
-		byte == 0xFE ||		// active sensing
-		byte == 0xFF		// reset
-	) {
-		return ringbuffer_get(&(b->buffer), m->byte);
-	}
-	if(
-		byte == 0xF9 ||		// undefined - reserved
-		byte == 0xFD		// undefined - reserved
-	) {
-		ringbuffer_get(&(b->buffer), &byte); // discard
-		return false;
-	}
-	// never reached
-	return false;
-}
-
 bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 	unsigned char byte = 0x00;
 
@@ -135,10 +108,6 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 		}
 	}
 	return false;
-}
-
-bool midibuffer_empty(midibuffer_t* b) {
-	return ringbuffer_empty(&(b->buffer));
 }
 
 bool midibuffer_tick(midibuffer_t* b) {

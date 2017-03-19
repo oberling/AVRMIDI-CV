@@ -59,17 +59,6 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m);
 bool midibuffer_put(midibuffer_t* b, unsigned char a);
 
 /**
- * \brief This function evaluates whether the buffer is empty or not
- * \description This function returns whether the buffer is empty or not.
- * If the buffer is not empty this does not mean, that you can get a
- * midimessage out of it (as it could be just 1 or 2 byte in it instead of
- * the needed 3.
- * \param in b the buffer to evaluate
- * \return wether the buffer is empty or not
- */
-bool midibuffer_empty(midibuffer_t* b);
-
-/**
  * \brief function to be called in your applications main loop
  * \description This function calls the provided callback function
  * but only if there is an message to dispatch. It only calls that
