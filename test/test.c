@@ -468,6 +468,7 @@ void update_clock_trigger(void) {
 void init_variables(void) {
 	midinote_stack_init(&note_stack);
 	midibuffer_init(&midi_buffer, &midi_handler_function);
+	// initializing to EMPTY_NOTE to be able to play note 0 as well
 	memset(playing_notes, EMPTY_NOTE, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 	memset(mode, 0, sizeof(playmode_t)*NUM_PLAY_MODES);
 	mode[POLYPHONIC_MODE].update_notes = update_notes_polyphonic;

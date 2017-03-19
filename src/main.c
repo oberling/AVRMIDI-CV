@@ -213,7 +213,7 @@ bool midi_handler_function(midimessage_t* m) {
 					lfo[i].position = 0;
 			}
 		} else {
-			midinote_stack_remove(&note_stack, m->byte[1]);
+			midinote_stack_remove(&note_stack, mnote.note);
 		}
 		return true;
 	} else if (m->byte[0] == NOTE_OFF(midi_channel)) {
@@ -275,7 +275,7 @@ void update_dac(void) {
 	for(; i<NUM_PLAY_NOTES; i++) {
 		note_t note = playing_notes[i].midinote.note;
 		vel_t velocity = playing_notes[i].midinote.velocity;
-		uint32_t voltage;
+		uint32_t voltage = 0;
 		get_voltage(note, &voltage);
 		if(voltage != 0x00) { // do not reset the oscillators pitch
 			dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
@@ -290,7 +290,7 @@ void update_dac(void) {
 		// other pins/dac-outputs anyway... but as of memset to EMPTY_NOTE in update_notes
 		// they are already EMPTY_NOTE here if this note is not playing and will get reset
 		// implicitly here
-		if(playing_notes[i].midinote.note != EMPTY_NOTE) {
+		if(note != EMPTY_NOTE) {
 			GATE_PORT |= (1<<(i+(GATE_OFFSET)));
 		} else {
 			GATE_PORT &= ~(1<<(i+(GATE_OFFSET)));
