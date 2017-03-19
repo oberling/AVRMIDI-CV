@@ -858,6 +858,15 @@ int main(int argc, char** argv) {
 			assert(playing_notes[3].midinote.note == e.byte[1]);
 		}
 		printf(" success\n");
+		printf("\ttesting update_note twice does not do something weird");
+		{
+			mode[playmode].update_notes(&note_stack, playing_notes);
+			assert(playing_notes[0].midinote.note == a.byte[1]);
+			assert(playing_notes[1].midinote.note == c.byte[1]);
+			assert(playing_notes[2].midinote.note == d.byte[1]);
+			assert(playing_notes[3].midinote.note == e.byte[1]);
+		}
+		printf(" success\n");
 		printf("\tremoving another note and test again");
 		d.byte[0] = NOTE_OFF(midi_channel);
 		insert_midibuffer_test(d);
