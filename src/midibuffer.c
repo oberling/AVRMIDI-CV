@@ -111,7 +111,7 @@ bool midibuffer_get(midibuffer_t* b, midimessage_t* m) {
 }
 
 bool midibuffer_tick(midibuffer_t* b) {
-	midimessage_t m = {0};
+	midimessage_t m = {{0}};
 	// if there is a message to dispatch
 	if(midibuffer_get(b, &m)) {
 		// dispatch it
