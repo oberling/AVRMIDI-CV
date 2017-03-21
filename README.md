@@ -56,6 +56,7 @@ In CONTROL\_MODE CC assignment (MIDI learn) is achieved by holding down the
 * lowest C# (MIDI Note 1) for CC-output 2
 * lowest D (MIDI Note 2) for CC-output 3
 * lowest D# (MIDI Note 3) for CC-output 4
+
 The standard CC assignments are
 * CC 16 - output 1
 * CC 17 - output 2
