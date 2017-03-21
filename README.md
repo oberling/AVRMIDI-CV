@@ -12,14 +12,14 @@ implemented Features
 * 4 Voice CV + 4 Gate
 * switchable polyphonic/unison mode
 * 4 additional CV outputs assignable
- * either velocity per voice...
- * ... 4 CC outputs (MIDI learn)...
- * ... or 2 soft LFO (switchable) + 2 clock divided trigger outputs
-  * syncable to MIDI Clock or free running
-  * adjustable LFO/clock trigger rate
-  * 4 different waveshapes for the LFOs (triangle, pulse, sawtooth, reverse sawtooth)
+  * either velocity per voice...
+  * ... 4 CC outputs (MIDI learn)...
+  * ... or 2 soft LFO (switchable) + 2 clock divided trigger outputs
+    * syncable to MIDI Clock or free running
+    * adjustable LFO/clock trigger rate
+    * 4 different waveshapes for the LFOs (triangle, pulse, sawtooth, reverse sawtooth)
 * accurate octave tuning (~500 steps per semitone)
- * each C note can be tuned seperately to even out non-linear behavior
+  * each C note can be tuned seperately to even out non-linear behavior
 * MIDI learn for assigning CC controls
 
 Two modes explained
@@ -42,12 +42,12 @@ In CONTROL\_MODE the MIDI-CV converter switches to unison. It will however switc
 In CONTROL\_MODE the octave tuning can be achieved as followes:
 1. pressing any note C of an octave (except lowest C (MIDI Note 0) which cannot be adjusted) selects this octave to be tuned
 2. while still pressing note C of the octave to be tuned press
- * note D to coarse tune down the C
- * note E to finer tune down the C
- * note F to make final adjustments downwards
- * note G to make final adjustments upwards
- * note A to finer tune up the C
- * note B to coarse tune up the C
+  * note D to coarse tune down the C
+  * note E to finer tune down the C
+  * note F to make final adjustments downwards
+  * note G to make final adjustments upwards
+  * note A to finer tune up the C
+  * note B to coarse tune up the C
 3. repeat the steps for all octaves as necessary
 
 ### CC assignemnt (MIDI learn)
