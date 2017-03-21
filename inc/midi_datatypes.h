@@ -27,6 +27,7 @@
 
 typedef uint8_t note_t;
 typedef uint8_t vel_t;
+typedef uint8_t cc_t;
 
 typedef struct {
 	note_t note;

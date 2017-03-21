@@ -14,6 +14,7 @@
 
 #include <string.h>
 #include <avr/io.h>
+#include <avr/eeprom.h>
 #include <avr/interrupt.h>
 
 #define GATE_PORT	PORTD
@@ -130,6 +131,50 @@ uint32_t voltage[11] = {
 	68116
 };
 
+// also put the values into eeprom
+// reason for doubling of variable: reading from eeprom only on boot (slow and 
+// disables and enables the interrupts - not nice while playing and relying on MIDI)
+// and writing only on calibration
+uint32_t voltage_eeprom[11] EEMEM = {
+	6192, // calculated: ((2^16)/127)*1*12
+	12385,// calculated: ((2^16)/127)*2*12
+	18577,// calculated: ((2^16)/127)*3*12
+	24769,// ... u get it :-)
+		  // one semitone is ((2^16)/127) round about 516
+	30962,
+	37154,
+	43347,
+	49539,
+	55731,
+	61924,
+	68116
+};
+
+uint8_t cc_message[4] = {
+	16,
+	17,
+	18,
+	19
+};
+
+uint8_t cc_message_eeprom[4] EEMEM = {
+	16,
+	17,
+	18,
+	19
+};
+
+cc_t cc_value[4] = {
+	0,
+	0,
+	0,
+	0
+};
+
+#define CC_INSTEAD_OF_VELOCITY	(0)
+uint8_t global_options = 0x00;
+uint8_t EEMEM global_options_eeprom = 0x00;
+
 uint16_t pitchbend = 0x2000; // middle_position
 
 // 24 CLOCK_SIGNALs per Beat (Quarter note)
@@ -175,6 +220,7 @@ uint8_t midi_channel = 7;
 
 uint32_t ticks = 0;
 uint32_t last_led_toggle_tick = 0;
+uint32_t last_button_pressed_tick = 0;
 
 #define NUM_LFO		(2)
 lfo_t lfo[NUM_LFO];
@@ -184,11 +230,24 @@ volatile bool must_update_lfo = false;
 
 uint8_t program_options = 0x00;
 
+#define NORMAL_MODE			(0x01)
+#define BUTTON_PRESSED_MODE	(0x02)
+#define CONTROL_MODE		(0x03)
+
+uint8_t program_mode = NORMAL_MODE;
+uint8_t last_mode = NORMAL_MODE;
+uint32_t mode_enter_tick = 0;
+bool button_has_been_released = true;
+
+uint8_t current_tuning_octave = 0xff;
+uint8_t current_cc_learning = 0xff;
+
 #define NUM_CLOCK_OUTPUTS	(2)
 #define CLOCK_TRIGGER_COUNTDOWN_INIT	(3)
 clock_trigger_t clock_output[NUM_CLOCK_OUTPUTS];
 volatile bool must_update_clock_output = false;
 
+bool control_mode_midi_handler_function(midimessage_t* m);
 bool midi_handler_function(midimessage_t* m);
 void get_voltage(uint8_t val, uint32_t* voltage_out);
 void update_dac(void);
@@ -200,8 +259,71 @@ void update_clock_trigger(void);
 void init_variables(void);
 void init_lfo(void);
 void init_io(void);
+void save_settings(void);
+void read_settings(void);
+
+bool control_mode_midi_handler_function(midimessage_t* m) {
+	midinote_t mnote;
+	if(m->byte[0] == NOTE_ON(midi_channel) && m->byte[2] != 0x00) {
+		mnote.note = m->byte[1];
+		mnote.velocity = m->byte[2];
+		if(mnote.note != 0 && mnote.note % 12 == 0) { // any note C above lowest C
+			midinote_stack_push(&note_stack, mnote); // play note that shall be tuned
+			current_tuning_octave = (mnote.note / 12)-1;
+			return true;
+		} else if (mnote.note < 12) { // lowest octave for special instructions
+			if(mnote.note<4) { // first 4 notes are for assigning CC
+				current_cc_learning = mnote.note;
+			} else if (mnote.note == 4) { // toggle between CC and velocity output non lfo
+				global_options ^= (1<<CC_INSTEAD_OF_VELOCITY);
+			} 
+		} else if (current_tuning_octave != 0xff) {
+			if (((mnote.note-2) % 12) == 0) { // any note D
+				voltage[current_tuning_octave]-=100;
+				return true;
+			} else if (((mnote.note-4) % 12) == 0) { // any note E
+				voltage[current_tuning_octave]-=10;
+				return true;
+			} else if (((mnote.note-5) % 12) == 0) { // any note F
+				voltage[current_tuning_octave]-=1;
+				return true;
+			} else if (((mnote.note-7) % 12) == 0) { // any note G
+				voltage[current_tuning_octave]+=1;
+				return true;
+			} else if (((mnote.note-9) % 12) == 0) { // any note A
+				voltage[current_tuning_octave]+=10;
+				return true;
+			} else if (((mnote.note-11) % 12) == 0) {// any note B
+				voltage[current_tuning_octave]+=100;
+				return true;
+			}
+		} else { // any other note
+		}
+	} else if (m->byte[0] == NOTE_OFF(midi_channel) || 
+			((m->byte[0] == NOTE_ON(midi_channel)) && m->byte[2] == 0x00)) {
+		mnote.note = m->byte[1];
+		mnote.velocity = m->byte[2];
+		if(mnote.note != 0 && mnote.note % 12 == 0) {
+			midinote_stack_remove(&note_stack, mnote.note);
+			current_tuning_octave = 0xff;
+			return true;
+		} else if (mnote.note < 12) {
+			if(mnote.note<4) { // first 4 notes are for assigning CC
+				current_cc_learning = 0xff;
+			}
+		}
+	} else if (m->byte[0] == CONTROL_CHANGE(midi_channel)) {
+		if(current_cc_learning != 0xff) {
+			cc_message[current_cc_learning] = m->byte[1];
+		}
+	}
+	return false;
+}
 
 bool midi_handler_function(midimessage_t* m) {
+	if(program_mode == CONTROL_MODE) {
+		return control_mode_midi_handler_function(m);
+	}
 	midinote_t mnote;
 	uint8_t i=0;
 	if(m->byte[0] == NOTE_ON(midi_channel)) {
@@ -231,6 +353,13 @@ bool midi_handler_function(midimessage_t* m) {
 		} else if (m->byte[1] == MOD_WHEEL) {
 			//TODO: do something special here(?)
 			return true;
+		} else {
+			for(i=0; i<4; i++) {
+				if(m->byte[1] == cc_message[i]) {
+					cc_value[i] = m->byte[1];
+					return true;
+				}
+			}
 		}
 		return false;
 	} else {
@@ -277,15 +406,21 @@ void update_dac(void) {
 	uint8_t i = 0;
 	for(; i<NUM_PLAY_NOTES; i++) {
 		note_t note = playing_notes[i].midinote.note;
-		vel_t velocity = playing_notes[i].midinote.velocity;
 		uint32_t voltage = 0;
-		get_voltage(note, &voltage);
-		if(voltage != 0x00) { // do not reset the oscillators pitch
+		if(note != EMPTY_NOTE) { // do not reset the oscillators pitch
+			get_voltage(note, &voltage);
 			dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
 		}
 		if(!ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
-			// Send velocity
-			get_voltage(velocity, &voltage);
+			cc_t ccval = cc_value[i];
+			if(ISSET(global_options,CC_INSTEAD_OF_VELOCITY)) {
+				// send CC
+				voltage = ccval<<9;
+			} else {
+				// Send velocity
+				vel_t velocity = playing_notes[i].midinote.velocity;
+				get_voltage(velocity, &voltage);
+			}
 			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
 		}
 
@@ -327,18 +462,49 @@ void update_clock_output(void) {
 void process_user_input(void) {
 	uint8_t input[NUM_SHIFTIN_REG];
 	sr74hc165_read(input, NUM_SHIFTIN_REG);
-	// no need to debounce butten
+	// no need to debounce button
 	if(!(BUTTON_PIN & (1<<BUTTON)) ) {
-		// CONTROL MODE
-		if(ticks-last_led_toggle_tick > 100) {
-			BUTTON_LED_PORT ^= (1<<LED);
-			last_led_toggle_tick = ticks;
+		if(button_has_been_released) {
+			switch(program_mode) {
+				case NORMAL_MODE:
+					last_mode = NORMAL_MODE;
+					mode_enter_tick = ticks;
+					program_mode = BUTTON_PRESSED_MODE;
+					break;
+				case BUTTON_PRESSED_MODE:
+					if(ticks - mode_enter_tick > 500) {
+						button_has_been_released = false;
+						if(last_mode == NORMAL_MODE) {
+							program_mode = CONTROL_MODE;
+							playmode = UNISON_MODE;
+							mode[playmode].init();
+						} else {
+							save_settings();
+							read_settings();
+							program_mode = NORMAL_MODE;
+						}
+					}
+					break;
+				case CONTROL_MODE:
+					last_mode = CONTROL_MODE;
+					mode_enter_tick = ticks;
+					program_mode = BUTTON_PRESSED_MODE;
+					break;
+				default:
+					break;
+			}
 		}
-//		// otherwise turn it off
-//		BUTTON_LED_PORT &= ~(1<<LED);
-	} else {
-		// PLAY MODE
-		// if button not pressed - light up LED permanently
+	} else { // button not pressed
+		button_has_been_released = true;
+		// if button released before entering CONTROL_MODE - reset to NORMAL_MODE
+		if(program_mode == BUTTON_PRESSED_MODE) {
+			read_settings(); // reset changes made in CONTROL_MODE
+			last_mode = NORMAL_MODE;
+			program_mode = NORMAL_MODE;
+		}
+	}
+	if(program_mode == NORMAL_MODE) {
+		// NORMAL MODE - light up LED permanently
 		BUTTON_LED_PORT |= (1<<LED);
 
 		uint8_t old_playmode = playmode;
@@ -389,6 +555,17 @@ void process_user_input(void) {
 				default:
 					break;
 			}
+		}
+	} else if (program_mode == CONTROL_MODE) {
+		// CONTROL MODE - toggle LED as indicator
+		if(ticks-last_led_toggle_tick > 100) {
+			BUTTON_LED_PORT ^= (1<<LED);
+			last_led_toggle_tick = ticks;
+		}
+	} else if (program_mode == BUTTON_PRESSED_MODE) {
+		if(ticks-last_led_toggle_tick > 20) {
+			BUTTON_LED_PORT ^= (1<<LED);
+			last_led_toggle_tick = ticks;
 		}
 	}
 }
@@ -481,6 +658,20 @@ void init_io(void) {
 	BUTTON_LED_PORT |= (1<<BUTTON); // activate internal pullup
 }
 
+void save_settings(void) {
+	// write settings to eeprom
+	eeprom_update_block((const void*)voltage, (void*)voltage_eeprom, sizeof(voltage));
+	eeprom_update_block((const void*)cc_message, (void*)cc_message_eeprom, sizeof(cc_message));
+	eeprom_update_byte(&global_options_eeprom, global_options);
+}
+
+void read_settings(void) {
+	// read settings from eeprom
+	eeprom_read_block(voltage, voltage_eeprom, sizeof(voltage));
+	eeprom_read_block(cc_message, cc_message_eeprom, sizeof(cc_message));
+	global_options = eeprom_read_byte(&global_options_eeprom);
+}
+
 ISR(USART_RXC_vect) {
 	char a;
 	uart_getc(&a);
@@ -527,6 +718,7 @@ ISR(TIMER2_OVF_vect) {
 
 int main(int argc, char** argv) {
 	cli();
+	read_settings();
 	init_variables();
 	init_lfo();
 	init_io();
