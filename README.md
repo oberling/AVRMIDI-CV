@@ -83,9 +83,9 @@ Tested in hardware so far:
 * shift registers input for multiple switches
 * MIDI channel switching via dip switch
 * cmos logic for switching the lfo wave forms to get 4 switch positions down to 2 input bits
+* MIDI THRU
 
 Test not completed for:
-* MIDI THRU
 * Clock divided trigger outputs
 
 TODO
