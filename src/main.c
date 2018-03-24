@@ -116,7 +116,7 @@ const uint8_t lfo_offset[2] = {
 //		(10V/120semitones)*127semitones = 10.5833V
 // if we output 5V from the dac for the 127th semitone
 // - that makes a factor of amplification of 2.1166666)
-uint32_t voltage[11] = {
+uint32_t voltage[NUM_PLAY_NOTES][11] = {
 	6192, // calculated: ((2^16)/127)*1*12
 	12385,// calculated: ((2^16)/127)*2*12
 	18577,// calculated: ((2^16)/127)*3*12
@@ -135,7 +135,7 @@ uint32_t voltage[11] = {
 // reason for doubling of variable: reading from eeprom only on boot (slow and 
 // disables and enables the interrupts - not nice while playing and relying on MIDI)
 // and writing only on calibration
-uint32_t voltage_eeprom[11] EEMEM = {
+uint32_t voltage_eeprom[NUM_PLAY_NOTES][11] EEMEM = {
 	6192, // calculated: ((2^16)/127)*1*12
 	12385,// calculated: ((2^16)/127)*2*12
 	18577,// calculated: ((2^16)/127)*3*12
@@ -239,6 +239,7 @@ uint8_t last_mode = NORMAL_MODE;
 uint32_t mode_enter_tick = 0;
 bool button_has_been_released = true;
 
+uint8_t current_tuning_voice = 0x00;
 uint8_t current_tuning_octave = 0xff;
 uint8_t current_cc_learning = 0xff;
 
@@ -249,7 +250,7 @@ volatile bool must_update_clock_output = false;
 
 bool control_mode_midi_handler_function(midimessage_t* m);
 bool midi_handler_function(midimessage_t* m);
-void get_voltage(uint8_t val, uint32_t* voltage_out);
+void get_voltage(uint8_t channel, uint8_t val, uint32_t* voltage_out);
 void update_dac(void);
 void update_lfo(void);
 void update_clock_output(void);
@@ -268,7 +269,10 @@ bool control_mode_midi_handler_function(midimessage_t* m) {
 		mnote.note = m->byte[1];
 		mnote.velocity = m->byte[2];
 		if(mnote.note != 0 && mnote.note % 12 == 0) { // any note C above lowest C
-			midinote_stack_push(&note_stack, mnote); // play note that shall be tuned
+			// not dealing with any playmodes here - we are tuning. not playing :)
+			// just "hardwire" the note to the current tuning voice output
+			playing_notes[current_tuning_voice].midinote.note = mnote.note;
+			playing_notes[current_tuning_voice].midinote.velocity = mnote.velocity;
 			current_tuning_octave = (mnote.note / 12)-1;
 			return true;
 		} else if (mnote.note < 12) { // lowest octave for special instructions
@@ -279,22 +283,22 @@ bool control_mode_midi_handler_function(midimessage_t* m) {
 			} 
 		} else if (current_tuning_octave != 0xff) {
 			if (((mnote.note-2) % 12) == 0) { // any note D
-				voltage[current_tuning_octave]-=100;
+				voltage[current_tuning_voice][current_tuning_octave]-=100;
 				return true;
 			} else if (((mnote.note-4) % 12) == 0) { // any note E
-				voltage[current_tuning_octave]-=10;
+				voltage[current_tuning_voice][current_tuning_octave]-=10;
 				return true;
 			} else if (((mnote.note-5) % 12) == 0) { // any note F
-				voltage[current_tuning_octave]-=1;
+				voltage[current_tuning_voice][current_tuning_octave]-=1;
 				return true;
 			} else if (((mnote.note-7) % 12) == 0) { // any note G
-				voltage[current_tuning_octave]+=1;
+				voltage[current_tuning_voice][current_tuning_octave]+=1;
 				return true;
 			} else if (((mnote.note-9) % 12) == 0) { // any note A
-				voltage[current_tuning_octave]+=10;
+				voltage[current_tuning_voice][current_tuning_octave]+=10;
 				return true;
 			} else if (((mnote.note-11) % 12) == 0) {// any note B
-				voltage[current_tuning_octave]+=100;
+				voltage[current_tuning_voice][current_tuning_octave]+=100;
 				return true;
 			}
 		} else { // any other note
@@ -304,7 +308,11 @@ bool control_mode_midi_handler_function(midimessage_t* m) {
 		mnote.note = m->byte[1];
 		mnote.velocity = m->byte[2];
 		if(mnote.note != 0 && mnote.note % 12 == 0) {
-			midinote_stack_remove(&note_stack, mnote.note);
+			// reset all notes
+			memset(playing_notes + current_tuning_voice, EMPTY_NOTE, sizeof(playingnote_t));
+			// cycle through the voices to be able to tune them all
+			current_tuning_voice += 1;
+			current_tuning_voice %= NUM_PLAY_NOTES;
 			current_tuning_octave = 0xff;
 			return true;
 		} else if (mnote.note < 12) {
@@ -322,7 +330,8 @@ bool control_mode_midi_handler_function(midimessage_t* m) {
 
 bool midi_handler_function(midimessage_t* m) {
 	if(program_mode == CONTROL_MODE) {
-		return control_mode_midi_handler_function(m);
+		must_update_dac = control_mode_midi_handler_function(m);
+		return false;
 	}
 	midinote_t mnote;
 	uint8_t i=0;
@@ -390,13 +399,13 @@ bool midi_handler_function(midimessage_t* m) {
 	return false;
 }
 
-void get_voltage(uint8_t val, uint32_t* voltage_out) {
+void get_voltage(uint8_t channel, uint8_t val, uint32_t* voltage_out) {
 	uint8_t i = (val/12); // which octave are we in?
 	float step = (val-(i*12))/12.0; // relative position in octave
 	if(i>0) {
-		*voltage_out = (voltage[i]-voltage[i-1])*step+voltage[i-1];
+		*voltage_out = (voltage[channel][i]-voltage[channel][i-1])*step+voltage[channel][i-1];
 	} else {
-		*voltage_out = (voltage[i])*step;
+		*voltage_out = (voltage[channel][i])*step;
 	}
 	if(*voltage_out > 65536)
 		*voltage_out = 65536;
@@ -408,7 +417,7 @@ void update_dac(void) {
 		note_t note = playing_notes[i].midinote.note;
 		uint32_t voltage = 0;
 		if(note != EMPTY_NOTE) { // do not reset the oscillators pitch
-			get_voltage(note, &voltage);
+			get_voltage(i, note, &voltage);
 			dac8568c_write(DAC_WRITE_UPDATE_N, i, voltage);
 		}
 		if(!ISSET(program_options, LFO_AND_CLOCK_OUT_ENABLE)) {
@@ -419,7 +428,7 @@ void update_dac(void) {
 			} else {
 				// Send velocity
 				vel_t velocity = playing_notes[i].midinote.velocity;
-				get_voltage(velocity, &voltage);
+				get_voltage(i, velocity, &voltage);
 			}
 			dac8568c_write(DAC_WRITE_UPDATE_N, i+NUM_PLAY_NOTES, voltage);
 		}
@@ -472,12 +481,14 @@ void process_user_input(void) {
 					program_mode = BUTTON_PRESSED_MODE;
 					break;
 				case BUTTON_PRESSED_MODE:
+					// this is our debouncing
+					// you have to press the button long enough to enter control mode
 					if(ticks - mode_enter_tick > 500) {
 						button_has_been_released = false;
 						if(last_mode == NORMAL_MODE) {
 							program_mode = CONTROL_MODE;
-							playmode = UNISON_MODE;
-							mode[playmode].init();
+							// turn off all playing notes
+							memset(playing_notes, EMPTY_NOTE, sizeof(playingnote_t)*NUM_PLAY_NOTES);
 						} else {
 							save_settings();
 							read_settings();
