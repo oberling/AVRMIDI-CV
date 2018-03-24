@@ -48,7 +48,8 @@ In CONTROL\_MODE the octave tuning can be achieved as followes:
   * note G to make final adjustments upwards
   * note A to finer tune up the C
   * note B to coarse tune up the C
-3. repeat the steps for all octaves as necessary
+3. releasing and repeatedly pressing the same note C of an octave switches through the voice cards
+4. repeat the steps for all octaves as necessary
 
 ### CC assignemnt (MIDI learn)
 In CONTROL\_MODE CC assignment (MIDI learn) is achieved by holding down the 
