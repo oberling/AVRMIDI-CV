@@ -365,7 +365,7 @@ bool midi_handler_function(midimessage_t* m) {
 		} else {
 			for(i=0; i<4; i++) {
 				if(m->byte[1] == cc_message[i]) {
-					cc_value[i] = m->byte[1];
+					cc_value[i] = m->byte[2];
 					return true;
 				}
 			}
